@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2} from 'lucide-react';
 import { ordemServicoSchema } from '../schemas';
 import type { OrdemServicoFormData } from '../schemas';
 import { ordemService } from '../services/ordens.service';
@@ -212,7 +212,7 @@ export const Ordens = () => {
                 onClick={() => setIsModalOpen(false)}
                 className="text-text-muted hover:text-white transition-colors"
               >
-                <X size={24} />
+               close
               </button>
             </div>
             

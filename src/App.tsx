@@ -8,6 +8,7 @@ import { Veiculos } from './pages/Veiculos';
 import { Ordens } from './pages/Ordens';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Landing } from "./pages/Landing";
+import { Profile } from './pages/Profile';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] text-text-muted">
@@ -20,7 +21,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-
+          
         {/* Landing (página pública) */}
         <Route path="/" element={<Landing />} />
 
@@ -36,6 +37,7 @@ function App() {
           <Route path="/ordens" element={<Ordens />} />
           <Route path="/financeiro" element={<Placeholder title="Financeiro" />} />
           <Route path="/usuarios" element={<Placeholder title="Gestão de Usuários" />} />
+          <Route path="/profile" element={<Profile />} />
         </Route>
 
         {/* fallback */}

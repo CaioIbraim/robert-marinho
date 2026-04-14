@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, X, User } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2,  User } from 'lucide-react';
 import { motoristaSchema } from '../schemas';
 import type { MotoristaFormData } from '../schemas';
 import { motoristaService } from '../services/motoristas.service';
@@ -163,7 +163,7 @@ export const Motoristas = () => {
                 onClick={() => setIsModalOpen(false)}
                 className="text-text-muted hover:text-white transition-colors"
               >
-                <X size={24} />
+               close
               </button>
             </div>
             

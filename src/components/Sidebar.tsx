@@ -1,19 +1,17 @@
-import { ReactNode, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import {
-  BarChart3,
-  Building2,
-  Truck,
-  Users,
-  FileText,
-  DollarSign,
-  LogOut,
-  Menu,
-  X,
-  PlusCircle
-} from 'lucide-react';
 
-import type { LucideIcon } from 'lucide-react'; // ✅ AQUI
+import { NavLink, useNavigate } from 'react-router-dom';
+
+import {
+  FaChartBar,
+  FaBuilding,
+  FaTruck,
+  FaUsers,
+  FaFileAlt,
+  FaSignOutAlt,
+  FaTimes
+} from 'react-icons/fa';
+
+import type { IconType } from 'react-icons';
 
 import { useAuthStore } from '../stores/authStore';
 import { clsx, type ClassValue } from 'clsx';
@@ -25,7 +23,7 @@ function cn(...inputs: ClassValue[]) {
 
 interface SidebarItemProps {
   to: string;
-  icon: LucideIcon;
+  icon: IconType;
   label: string;
   onClick?: () => void;
 }
@@ -44,7 +42,7 @@ const SidebarItem = ({ to, icon: Icon, label, onClick }: SidebarItemProps) => {
         )
       }
     >
-      <Icon size={20} />
+      <Icon size={18} />
       <span>{label}</span>
     </NavLink>
   );
@@ -69,33 +67,40 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         />
       )}
 
-      <aside className={cn(
-        "fixed inset-y-0 left-0 bg-surface border-r border-border w-64 z-50 transition-transform duration-300 lg:translate-x-0 lg:static lg:block",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 bg-surface border-r border-border w-64 z-50 transition-transform duration-300 lg:translate-x-0 lg:static lg:block",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Truck className="text-white" size={20} />
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white">
+                <FaTruck size={16} />
               </div>
-              <span className="text-xl font-bold tracking-tight text-white">LOGO<span className="text-primary">FRETE</span></span>
+              <span className="text-xl font-bold tracking-tight text-white">
+                ROBERT<span className="text-primary">SABINO</span>
+              </span>
             </div>
+
             <button onClick={onClose} className="lg:hidden text-text-muted hover:text-white">
-              <X size={24} />
+              <FaTimes size={18} />
             </button>
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-            <SidebarItem to="/dashboard" icon={BarChart3} label="Dashboard" onClick={onClose} />
-            <SidebarItem to="/empresas" icon={Building2} label="Empresas" onClick={onClose} />
-            <SidebarItem to="/motoristas" icon={Users} label="Motoristas" onClick={onClose} />
-            <SidebarItem to="/veiculos" icon={Truck} label="Veículos" onClick={onClose} />
-            <SidebarItem to="/ordens" icon={FileText} label="Ordens de Serviço" onClick={onClose} />
-            <SidebarItem to="/financeiro" icon={DollarSign} label="Financeiro" onClick={onClose} />
-            <SidebarItem to="/usuarios" icon={PlusCircle} label="Usuários" onClick={onClose} />
+            <SidebarItem to="/dashboard" icon={FaChartBar} label="Dashboard" onClick={onClose} />
+            <SidebarItem to="/empresas" icon={FaBuilding} label="Empresas" onClick={onClose} />
+            <SidebarItem to="/motoristas" icon={FaUsers} label="Motoristas" onClick={onClose} />
+            <SidebarItem to="/veiculos" icon={FaTruck} label="Veículos" onClick={onClose} />
+            <SidebarItem to="/ordens" icon={FaFileAlt} label="Ordens de Serviço" onClick={onClose} />
+            {/* 
+            <SidebarItem to="/financeiro" icon={FaDollarSign} label="Financeiro" onClick={onClose} />
+            <SidebarItem to="/usuarios" icon={FaPlusCircle} label="Usuários" onClick={onClose} />
+            */}
           </nav>
 
           {/* Footer */}
@@ -104,7 +109,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               onClick={handleSignOut}
               className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
             >
-              <LogOut size={20} />
+              <FaSignOutAlt size={18} />
               <span>Sair do Sistema</span>
             </button>
           </div>
