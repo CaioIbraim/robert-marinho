@@ -35,11 +35,23 @@ export const ordemService = {
   },
 
   async create(data: OrdemServicoFormData) {
-    const { error } = await supabase
+    const { data: newOrdem, error } = await supabase
       .from('ordens_servico')
-      .insert([data]);
+      .insert([data])
+      .select('id')
+      .single();
     
     if (error) throw error;
+    
+    const { error: recError } = await supabase
+      .from('recebimentos')
+      .insert([{
+        ordem_id: newOrdem.id,
+        valor: data.valor_total,
+        status: 'pendente'
+      }]);
+      
+    if (recError) throw recError;
   },
 
   async update(id: string, data: Partial<OrdemServicoFormData>) {

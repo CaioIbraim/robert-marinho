@@ -9,6 +9,8 @@ import { Ordens } from './pages/Ordens';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Landing } from "./pages/Landing";
 import { Profile } from './pages/Profile';
+import { Financeiro } from './pages/Financeiro';
+import { Notificacoes } from './pages/Notificacoes';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] text-text-muted">
@@ -35,7 +37,8 @@ function App() {
           <Route path="/motoristas" element={<Motoristas />} />
           <Route path="/veiculos" element={<Veiculos />} />
           <Route path="/ordens" element={<Ordens />} />
-          <Route path="/financeiro" element={<Placeholder title="Financeiro" />} />
+          <Route path="/financeiro" element={<Financeiro />} />
+          <Route path="/notificacoes" element={<Notificacoes />} />
           <Route path="/usuarios" element={<Placeholder title="Gestão de Usuários" />} />
           <Route path="/profile" element={<Profile />} />
         </Route>

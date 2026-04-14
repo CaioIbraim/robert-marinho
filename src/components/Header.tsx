@@ -77,6 +77,11 @@ export const Header = ({ onMenuOpen }: { onMenuOpen: () => void }) => {
                   ))
                 )}
               </div>
+              <div className="p-2 border-t border-border text-center">
+                <button onClick={() => { setOpen(false); navigate('/notificacoes'); }} className="text-sm font-medium text-primary hover:underline">
+                  Ver todas as notificações
+                </button>
+              </div>
             </div>
           )}
         </div>

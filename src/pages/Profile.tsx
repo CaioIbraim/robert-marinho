@@ -76,7 +76,7 @@ export const Profile = () => {
         }
       );
 
-      const filePath = `${user.id}/${Date.now()}.jpg`;
+      const filePath = `${user!.id}/${Date.now()}.jpg`;
 
       const { error } = await supabase.storage
         .from('avatars')

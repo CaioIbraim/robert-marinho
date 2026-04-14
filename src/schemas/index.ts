@@ -6,7 +6,7 @@ export const empresaSchema = z.object({
   cnpj: z.string().min(14, 'CNPJ inválido').max(18),
   email: z.string().email('Email inválido'),
   telefone: z.string().min(10, 'Telefone inválido'),
-  status: z.string().default('ativo'),
+  status: z.string().optional(),
 });
 
 export const motoristaSchema = z.object({
@@ -17,14 +17,14 @@ export const motoristaSchema = z.object({
   cnh: z.string().min(5, 'CNH inválida'),
   categoria_cnh: z.string().optional(),
   validade_cnh: z.string().optional(),
-  status: z.string().default('ativo'),
+  status: z.string().optional(),
 });
 
 export const veiculoSchema = z.object({
   placa: z.string().min(7, 'Placa inválida').max(8),
   modelo: z.string().min(2, 'Modelo inválido'),
   capacidade: z.coerce.number().min(0).optional(),
-  status: z.string().default('disponivel'),
+  status: z.enum(['ativo', 'inativo']).optional(),
 });
 
 export const ordemServicoSchema = z.object({
@@ -34,7 +34,7 @@ export const ordemServicoSchema = z.object({
   origem: z.string().min(3, 'Origem inválida'),
   destino: z.string().min(3, 'Destino inválido'),
   valor_total: z.coerce.number().min(0, 'Valor deve ser positivo'),
-  status: z.enum(['pendente', 'em_transito', 'concluida', 'cancelada']),
+  status: z.enum(['pendente', 'em_andamento', 'concluido', 'cancelado']),
 });
 
 export type EmpresaFormData = z.infer<typeof empresaSchema>;

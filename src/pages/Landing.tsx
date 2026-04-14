@@ -103,11 +103,3 @@ function Feature({ title, desc }: any) {
         </div>
     );
 }
-
-function Benefit({ text }: any) {
-    return (
-        <div className="border border-border rounded-xl p-4 hover:border-primary transition">
-            {text}
-        </div>
-    );
-}

@@ -13,7 +13,7 @@ export const usePerfil = () => {
       const { data, error } = await supabase
         .from('perfis')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', user!.id)
         .single();
 
       if (error) throw error;

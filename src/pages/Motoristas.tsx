@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2,  User } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, User, Download, FileText, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { motoristaSchema } from '../schemas';
 import type { MotoristaFormData } from '../schemas';
 import { motoristaService } from '../services/motoristas.service';
@@ -9,6 +9,7 @@ import type { Motorista } from '../types';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
+import { exportToExcel, exportToPDF } from '../utils/export';
 
 export const Motoristas = () => {
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
@@ -16,6 +17,9 @@ export const Motoristas = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<MotoristaFormData>({
     resolver: zodResolver(motoristaSchema),
@@ -75,9 +79,36 @@ export const Motoristas = () => {
   };
 
   const filteredMotoristas = motoristas.filter(m => 
-    m.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.cpf.includes(searchTerm)
+    (m.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.cpf.includes(searchTerm)) &&
+    (statusFilter === '' || m.status === statusFilter)
   );
+
+  const totalPages = Math.ceil(filteredMotoristas.length / itemsPerPage);
+  const paginatedMotoristas = filteredMotoristas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleExportExcel = () => {
+    const data = filteredMotoristas.map(m => ({
+      ID: m.id,
+      Nome: m.nome,
+      CPF: m.cpf,
+      Telefone: m.telefone,
+      CNH: m.cnh,
+      Status: m.status
+    }));
+    exportToExcel(data, 'motoristas');
+  };
+
+  const handleExportPDF = () => {
+    const columns = [
+      { header: 'Nome', dataKey: 'nome' },
+      { header: 'CPF', dataKey: 'cpf' },
+      { header: 'Telefone', dataKey: 'telefone' },
+      { header: 'CNH', dataKey: 'cnh' },
+      { header: 'Status', dataKey: 'status' }
+    ];
+    exportToPDF(filteredMotoristas, columns, 'motoristas', 'Relatório de Motoristas');
+  };
 
   return (
     <div className="space-y-6">
@@ -86,22 +117,47 @@ export const Motoristas = () => {
           <h1 className="text-2xl font-bold text-white">Motoristas</h1>
           <p className="text-text-muted">Gerencie os motoristas da frota.</p>
         </div>
-        <Button onClick={() => { setEditingId(null); reset(); setIsModalOpen(true); }} className="flex gap-2">
+        <Button onClick={() => { 
+          setEditingId(null); 
+          reset({ nome: '', cpf: '', telefone: '', email: '', cnh: '', categoria_cnh: '', validade_cnh: '', status: 'ativo' }); 
+          setIsModalOpen(true); 
+        }} className="flex gap-2">
           <Plus size={20} /> Novo Motorista
         </Button>
       </div>
 
       <Card className="!p-0 overflow-visible">
-        <div className="p-4 border-b border-border flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input
               type="text"
               placeholder="Buscar por nome ou CPF..."
               className="w-full bg-background border border-border rounded-md pl-10 pr-4 py-2 text-sm input-focus"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+             <div className="relative w-full sm:w-40">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                <select 
+                  className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                >
+                  <option value="">Status</option>
+                  <option value="ativo">Ativo</option>
+                  <option value="inativo">Inativo</option>
+                </select>
+             </div>
+             
+             <button onClick={handleExportExcel} className="p-2 bg-surface border border-border rounded-md hover:border-green-500 hover:text-green-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para Excel">
+                <Download size={18} />
+             </button>
+             <button onClick={handleExportPDF} className="p-2 bg-surface border border-border rounded-md hover:border-red-500 hover:text-red-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para PDF">
+               <FileText size={18} />
+             </button>
           </div>
         </div>
 
@@ -119,9 +175,9 @@ export const Motoristas = () => {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Carregando...</td></tr>
-              ) : filteredMotoristas.length === 0 ? (
+              ) : paginatedMotoristas.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Nenhum motorista encontrado.</td></tr>
-              ) : filteredMotoristas.map((motorista) => (
+              ) : paginatedMotoristas.map((motorista) => (
                 <tr key={motorista.id} className="hover:bg-border/20 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -149,6 +205,31 @@ export const Motoristas = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-border flex items-center justify-between">
+             <span className="text-sm text-text-muted">
+               Página {currentPage} de {totalPages} (Total: {filteredMotoristas.length})
+             </span>
+             <div className="flex gap-2">
+               <button 
+                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                 disabled={currentPage === 1}
+                 className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
+               >
+                 <ChevronLeft size={18} />
+               </button>
+               <button 
+                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                 disabled={currentPage === totalPages}
+                 className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
+               >
+                 <ChevronRight size={18} />
+               </button>
+             </div>
+          </div>
+        )}
       </Card>
 
       {/* Modal Form */}

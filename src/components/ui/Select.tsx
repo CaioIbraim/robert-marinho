@@ -1,4 +1,5 @@
-import { SelectHTMLAttributes, forwardRef } from 'react';
+import { forwardRef } from 'react';
+import type { SelectHTMLAttributes } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 

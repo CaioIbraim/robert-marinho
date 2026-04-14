@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2} from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { veiculoSchema } from '../schemas';
 import type { VeiculoFormData } from '../schemas';
 import { veiculoService } from '../services/veiculos.service';
@@ -10,6 +10,7 @@ import type { Veiculo } from '../types';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
+import { exportToExcel, exportToPDF } from '../utils/export';
 
 export const Veiculos = () => {
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
@@ -17,6 +18,9 @@ export const Veiculos = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<VeiculoFormData>({
     resolver: zodResolver(veiculoSchema) as any,
@@ -76,9 +80,34 @@ export const Veiculos = () => {
   };
 
   const filteredVeiculos = veiculos.filter(v => 
-    v.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.modelo.toLowerCase().includes(searchTerm.toLowerCase())
+    (v.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    v.modelo.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (statusFilter === '' || v.status === statusFilter)
   );
+
+  const totalPages = Math.ceil(filteredVeiculos.length / itemsPerPage);
+  const paginatedVeiculos = filteredVeiculos.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleExportExcel = () => {
+    const data = filteredVeiculos.map(v => ({
+      ID: v.id,
+      Placa: v.placa,
+      Modelo: v.modelo,
+      Capacidade: v.capacidade,
+      Status: v.status
+    }));
+    exportToExcel(data, 'veiculos');
+  };
+
+  const handleExportPDF = () => {
+    const columns = [
+      { header: 'Placa', dataKey: 'placa' },
+      { header: 'Modelo', dataKey: 'modelo' },
+      { header: 'Capacidade', dataKey: 'capacidade' },
+      { header: 'Status', dataKey: 'status' }
+    ];
+    exportToPDF(filteredVeiculos, columns, 'veiculos', 'Relatório de Veículos');
+  };
 
   return (
     <div className="space-y-6">
@@ -87,22 +116,47 @@ export const Veiculos = () => {
           <h1 className="text-2xl font-bold text-white">Veículos</h1>
           <p className="text-text-muted">Gerencie a frota de veículos.</p>
         </div>
-        <Button onClick={() => { setEditingId(null); reset(); setIsModalOpen(true); }} className="flex gap-2">
+        <Button onClick={() => { 
+          setEditingId(null); 
+          reset({ placa: '', modelo: '', capacidade: undefined, status: 'ativo' }); 
+          setIsModalOpen(true); 
+        }} className="flex gap-2">
           <Plus size={20} /> Novo Veículo
         </Button>
       </div>
 
       <Card className="!p-0 overflow-visible">
-        <div className="p-4 border-b border-border flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input
               type="text"
               placeholder="Buscar por placa ou modelo..."
               className="w-full bg-background border border-border rounded-md pl-10 pr-4 py-2 text-sm input-focus"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+             <div className="relative w-full sm:w-40">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                <select 
+                  className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                >
+                  <option value="">Status</option>
+                  <option value="ativo">Ativo</option>
+                  <option value="inativo">Inativo</option>
+                </select>
+             </div>
+             
+             <button onClick={handleExportExcel} className="p-2 bg-surface border border-border rounded-md hover:border-green-500 hover:text-green-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para Excel">
+                <Download size={18} />
+             </button>
+             <button onClick={handleExportPDF} className="p-2 bg-surface border border-border rounded-md hover:border-red-500 hover:text-red-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para PDF">
+               <FileText size={18} />
+             </button>
           </div>
         </div>
 
@@ -120,15 +174,15 @@ export const Veiculos = () => {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Carregando...</td></tr>
-              ) : filteredVeiculos.length === 0 ? (
+              ) : paginatedVeiculos.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Nenhum veículo encontrado.</td></tr>
-              ) : filteredVeiculos.map((veiculo) => (
+              ) : paginatedVeiculos.map((veiculo) => (
                 <tr key={veiculo.id} className="hover:bg-border/20 transition-colors group">
                   <td className="px-6 py-4 font-bold text-primary uppercase">{veiculo.placa}</td>
                   <td className="px-6 py-4 font-medium text-white">{veiculo.modelo}</td>
                   <td className="px-6 py-4 text-text-muted">{veiculo.capacidade || 'N/A'}</td>
                   <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md bg-border/50 text-text-muted text-[10px] uppercase font-bold">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold ${veiculo.status === 'ativo' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
                       {veiculo.status}
                     </span>
                   </td>
@@ -147,6 +201,31 @@ export const Veiculos = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-border flex items-center justify-between">
+             <span className="text-sm text-text-muted">
+               Página {currentPage} de {totalPages} (Total: {filteredVeiculos.length})
+             </span>
+             <div className="flex gap-2">
+               <button 
+                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                 disabled={currentPage === 1}
+                 className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
+               >
+                 <ChevronLeft size={18} />
+               </button>
+               <button 
+                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                 disabled={currentPage === totalPages}
+                 className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
+               >
+                 <ChevronRight size={18} />
+               </button>
+             </div>
+          </div>
+        )}
       </Card>
 
       {/* Modal Form */}
@@ -194,9 +273,8 @@ export const Veiculos = () => {
                     {...register('status')}
                     className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm input-focus text-white"
                   >
-                    <option value="disponivel">Disponível</option>
-                    <option value="em_uso">Em Uso</option>
-                    <option value="manutencao">Manutenção</option>
+                    <option value="ativo">Ativo</option>
+                    <option value="inativo">Inativo</option>
                   </select>
                 </div>
               </div>

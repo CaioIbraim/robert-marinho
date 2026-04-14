@@ -37,7 +37,7 @@ export type Veiculo = {
   placa: string;
   modelo: string;
   capacidade?: number;
-  status: string;
+  status: 'ativo' | 'inativo';
   created_at: string;
 };
 
@@ -49,7 +49,7 @@ export type OrdemServico = {
   origem: string;
   destino: string;
   valor_total: number;
-  status: 'pendente' | 'em_transito' | 'concluida' | 'cancelada';
+  status: 'pendente' | 'em_andamento' | 'concluido' | 'cancelado';
   financeiro_status: 'pendente' | 'pago';
   created_at: string;
   

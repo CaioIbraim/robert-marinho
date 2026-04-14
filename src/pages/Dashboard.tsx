@@ -5,7 +5,9 @@ import { useComparativo } from '../hooks/useComparativo';
 import { useRealtimeDashboard } from '../hooks/useRealtimeDashboard';
 import { FaturamentoChart } from '../components/FaturamentoChart';
 import { OrdensRecentes } from '../components/OrdensRecentes';
-import { OrdensPendentes } from '../components/OrdensPendentes'
+import { OrdensPendentes } from '../components/OrdensPendentes';
+import { Link } from 'react-router-dom';
+import { Plus, ListTodo, Route as RouteIcon } from 'lucide-react';
 
 const StatCard = ({ title, value, icon: Icon, trend }: any) => (
   <Card className="flex flex-col gap-2 hover:scale-[1.02] transition-transform">
@@ -40,9 +42,27 @@ export const Dashboard = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-text-muted">Visão geral da operação</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-text-muted">Visão geral da operação</p>
+        </div>
+        
+        {/* Atalhos Rápidos */}
+        <div className="flex flex-wrap gap-3">
+          <Link to="/ordens" className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm transition-colors shadow-sm">
+            <Plus size={16} />
+            <span className="font-semibold">Nova Ordem</span>
+          </Link>
+          <Link to="/motoristas" className="flex items-center gap-2 bg-surface border border-border hover:border-primary text-text px-4 py-2 rounded-lg text-sm transition-colors">
+            <ListTodo size={16} />
+            <span>Motoristas</span>
+          </Link>
+          <Link to="/veiculos" className="flex items-center gap-2 bg-surface border border-border hover:border-primary text-text px-4 py-2 rounded-lg text-sm transition-colors">
+            <RouteIcon size={16} />
+            <span>Veículos</span>
+          </Link>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -51,7 +71,7 @@ export const Dashboard = () => {
           title="Ordens Hoje"
           value={data?.ordens}
           icon={FaFileAlt}
-          trend={comparativo ? data.ordens - comparativo.ontem : 0}
+          trend={comparativo ? (data?.ordens || 0) - comparativo.ontem : 0}
         />
 
         <StatCard

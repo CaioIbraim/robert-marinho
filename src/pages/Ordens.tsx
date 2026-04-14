@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2} from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, RefreshCw } from 'lucide-react';
 import { ordemServicoSchema } from '../schemas';
+import { supabase } from '../lib/supabaseClient';
 import type { OrdemServicoFormData } from '../schemas';
 import { ordemService } from '../services/ordens.service';
 import { empresaService } from '../services/empresas.service';
@@ -15,6 +16,7 @@ import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { exportToExcel, exportToPDF, generatePaymentReceipt } from '../utils/export';
 
 export const Ordens = () => {
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
@@ -26,6 +28,16 @@ export const Ordens = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
+  const [ordemToConfirm, setOrdemToConfirm] = useState<string | null>(null);
+  const [confirmData, setConfirmData] = useState({ forma_pagamento: 'pix', data_pagamento: new Date().toISOString().split('T')[0] });
+
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [statusOrdemTarget, setStatusOrdemTarget] = useState<OrdemServico | null>(null);
+  const [newStatus, setNewStatus] = useState<string>('');
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<OrdemServicoFormData>({
     resolver: zodResolver(ordemServicoSchema) as any,
@@ -57,16 +69,52 @@ export const Ordens = () => {
   const onSubmit: SubmitHandler<OrdemServicoFormData> = async (data) => {
     try {
       if (editingId) {
+        const oldOrdem = ordens.find(o => o.id === editingId);
         await ordemService.update(editingId, data);
+        
+        if (data.status === 'concluido' && oldOrdem?.status !== 'concluido') {
+           const { data: userData } = await supabase.auth.getUser();
+           if (userData?.user) {
+             await supabase.from('notificacoes').insert([{
+               user_id: userData.user.id,
+               titulo: 'Ordem Concluída',
+               mensagem: `A OS para ${data.destino} foi concluída. Confirme ou verifique se o recebimento foi realizado!`,
+               tipo: 'warning',
+               link: '/financeiro'
+             }]);
+           }
+           setOrdemToConfirm(editingId);
+        }
       } else {
         await ordemService.create(data);
       }
       setIsModalOpen(false);
-      reset();
+      reset({
+        empresa_id: '',
+        motorista_id: '',
+        veiculo_id: '',
+        origem: '',
+        destino: '',
+        valor_total: 0,
+        status: 'pendente',
+      });
       setEditingId(null);
       loadData();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (ordemToConfirm) {
+      await supabase.from('recebimentos').update({
+        status: 'pago',
+        forma_pagamento: confirmData.forma_pagamento,
+        data_pagamento: confirmData.data_pagamento
+      }).eq('ordem_id', ordemToConfirm);
+      
+      setOrdemToConfirm(null);
+      alert('Recebimento confirmado e registrado no Financeiro!');
     }
   };
 
@@ -82,6 +130,40 @@ export const Ordens = () => {
       status: ordem.status,
     });
     setIsModalOpen(true);
+  };
+
+  const handleOpenStatusModal = (ordem: OrdemServico) => {
+    setStatusOrdemTarget(ordem);
+    setNewStatus(ordem.status);
+    setStatusModalOpen(true);
+  };
+
+  const handleQuickStatusChange = async () => {
+    if (!statusOrdemTarget) return;
+
+    try {
+      await ordemService.update(statusOrdemTarget.id, { status: newStatus as any });
+
+      if (newStatus === 'concluido' && statusOrdemTarget.status !== 'concluido') {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          await supabase.from('notificacoes').insert([{
+            user_id: userData.user.id,
+            titulo: 'Ordem Concluída',
+            mensagem: `A OS para ${statusOrdemTarget.destino} foi concluída pelo Quick-Action. Confirme o recebimento!`,
+            tipo: 'warning',
+            link: '/financeiro'
+          }]);
+        }
+        setOrdemToConfirm(statusOrdemTarget.id);
+      }
+      
+      setStatusModalOpen(false);
+      setStatusOrdemTarget(null);
+      loadData();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -106,10 +188,47 @@ export const Ordens = () => {
   };
 
   const filteredOrdens = ordens.filter(o => 
-    o.origem.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.origem.toLowerCase().includes(searchTerm.toLowerCase()) ||
     o.destino.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.empresa?.razao_social.toLowerCase().includes(searchTerm.toLowerCase())
+    o.empresa?.razao_social.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (statusFilter === '' || o.status === statusFilter)
   );
+
+  const totalPages = Math.ceil(filteredOrdens.length / itemsPerPage);
+  const paginatedOrdens = filteredOrdens.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleExportExcel = () => {
+    const data = filteredOrdens.map(o => ({
+      ID: o.id,
+      Data: format(new Date(o.created_at), 'dd/MM/yyyy HH:mm'),
+      Empresa: o.empresa?.razao_social,
+      Origem: o.origem,
+      Destino: o.destino,
+      Motorista: o.motorista?.nome,
+      Veiculo: o.veiculo?.placa,
+      Valor: o.valor_total,
+      Status: o.status
+    }));
+    exportToExcel(data, 'ordens_servico');
+  };
+
+  const handleExportPDF = () => {
+    const columns = [
+      { header: 'Data', dataKey: 'data' },
+      { header: 'Empresa', dataKey: 'empresa' },
+      { header: 'Origem', dataKey: 'origem' },
+      { header: 'Destino', dataKey: 'destino' },
+      { header: 'Status', dataKey: 'status' }
+    ];
+    const data = filteredOrdens.map(o => ({
+      data: format(new Date(o.created_at), 'dd/MM/yyyy'),
+      empresa: o.empresa?.razao_social || '',
+      origem: o.origem,
+      destino: o.destino,
+      status: o.status
+    }));
+    exportToPDF(data, columns, 'ordens_servico', 'Relatório de Ordens de Serviço');
+  };
 
   return (
     <div className="space-y-6">
@@ -118,22 +237,57 @@ export const Ordens = () => {
           <h1 className="text-2xl font-bold text-white">Ordens de Serviço</h1>
           <p className="text-text-muted">Gerencie os transportes e fretes.</p>
         </div>
-        <Button onClick={() => { setEditingId(null); reset(); setIsModalOpen(true); }} className="flex gap-2">
+        <Button onClick={() => { 
+          setEditingId(null); 
+          reset({
+            empresa_id: '',
+            motorista_id: '',
+            veiculo_id: '',
+            origem: '',
+            destino: '',
+            valor_total: 0,
+            status: 'pendente',
+          }); 
+          setIsModalOpen(true); 
+        }} className="flex gap-2">
           <Plus size={20} /> Nova Ordem
         </Button>
       </div>
 
       <Card className="!p-0 overflow-visible">
-        <div className="p-4 border-b border-border flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input
               type="text"
               placeholder="Buscar por origem, destino ou empresa..."
               className="w-full bg-background border border-border rounded-md pl-10 pr-4 py-2 text-sm input-focus"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+             <div className="relative w-full sm:w-40">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                <select 
+                  className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                >
+                  <option value="">Status</option>
+                  <option value="pendente">Pendente</option>
+                  <option value="em_andamento">Em Andamento</option>
+                  <option value="concluido">Concluída</option>
+                  <option value="cancelado">Cancelada</option>
+                </select>
+             </div>
+             
+             <button onClick={handleExportExcel} className="p-2 bg-surface border border-border rounded-md hover:border-green-500 hover:text-green-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para Excel">
+                <Download size={18} />
+             </button>
+             <button onClick={handleExportPDF} className="p-2 bg-surface border border-border rounded-md hover:border-red-500 hover:text-red-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para PDF">
+               <FileText size={18} />
+             </button>
           </div>
         </div>
 
@@ -152,9 +306,9 @@ export const Ordens = () => {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center">Carregando...</td></tr>
-              ) : filteredOrdens.length === 0 ? (
+              ) : paginatedOrdens.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center">Nenhuma ordem encontrada.</td></tr>
-              ) : filteredOrdens.map((ordem) => (
+              ) : paginatedOrdens.map((ordem) => (
                 <tr key={ordem.id} className="hover:bg-border/20 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
@@ -185,12 +339,20 @@ export const Ordens = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => handleEdit(ordem)} className="p-1.5 text-text-muted hover:text-primary transition-colors">
+                      <button onClick={() => handleEdit(ordem)} className="p-1.5 text-text-muted hover:text-primary transition-colors tooltip-trigger" title="Editar">
                         <Pencil size={18} />
                       </button>
-                      <button onClick={() => handleDelete(ordem.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-colors">
+                      <button onClick={() => handleOpenStatusModal(ordem)} className="p-1.5 text-text-muted hover:text-orange-500 transition-colors tooltip-trigger" title="Alterar Status Rápido">
+                        <RefreshCw size={18} />
+                      </button>
+                      <button onClick={() => handleDelete(ordem.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-colors tooltip-trigger" title="Excluir">
                         <Trash2 size={18} />
                       </button>
+                      {ordem.status === 'concluido' && (
+                        <button onClick={() => generatePaymentReceipt(ordem, ordem.empresa)} className="p-1.5 text-text-muted hover:text-blue-500 transition-colors tooltip-trigger" title="Gerar Recibo">
+                          <FileText size={18} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -198,6 +360,31 @@ export const Ordens = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-border flex items-center justify-between">
+             <span className="text-sm text-text-muted">
+               Página {currentPage} de {totalPages} (Total: {filteredOrdens.length})
+             </span>
+             <div className="flex gap-2">
+               <button 
+                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                 disabled={currentPage === 1}
+                 className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
+               >
+                 <ChevronLeft size={18} />
+               </button>
+               <button 
+                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                 disabled={currentPage === totalPages}
+                 className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
+               >
+                 <ChevronRight size={18} />
+               </button>
+             </div>
+          </div>
+        )}
       </Card>
 
       {/* Modal Form */}
@@ -287,9 +474,9 @@ export const Ordens = () => {
                         className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm input-focus text-white"
                       >
                         <option value="pendente">Pendente</option>
-                        <option value="em_transito">Em Trânsito</option>
-                        <option value="concluida">Concluída</option>
-                        <option value="cancelada">Cancelada</option>
+                        <option value="em_andamento">Em Andamento</option>
+                        <option value="concluido">Concluída</option>
+                        <option value="cancelado">Cancelada</option>
                       </select>
                     </div>
                   </div>
@@ -306,6 +493,78 @@ export const Ordens = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Recebimento Automático */}
+      {ordemToConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface border border-border rounded-xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in">
+            <h3 className="text-lg font-bold text-white mb-2">Ordem Concluída!</h3>
+            <p className="text-sm text-text-muted mb-4">Deseja registrar o recebimento desse frete agora mesmo?</p>
+            
+            <div className="space-y-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm text-text-muted">Forma de Pagamento</label>
+                <select 
+                  className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
+                  value={confirmData.forma_pagamento}
+                  onChange={(e) => setConfirmData({...confirmData, forma_pagamento: e.target.value})}
+                >
+                  <option value="pix">PIX</option>
+                  <option value="boleto">Boleto</option>
+                  <option value="transferencia">Transferência</option>
+                  <option value="dinheiro">Dinheiro Físico</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm text-text-muted">Data do Pagamento</label>
+                <input 
+                  type="date"
+                  className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
+                  value={confirmData.data_pagamento}
+                  onChange={(e) => setConfirmData({...confirmData, data_pagamento: e.target.value})}
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <Button type="button" variant="ghost" onClick={() => setOrdemToConfirm(null)}>Mais tarde</Button>
+                <Button type="button" onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">Confirmar Recebimento</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Quick Status Change */}
+      {statusModalOpen && statusOrdemTarget && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+           <div className="bg-surface border border-border rounded-xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in">
+              <h3 className="text-lg font-bold text-white mb-2">Alterar Status</h3>
+              <p className="text-sm text-text-muted mb-4">
+                Ordem: {statusOrdemTarget.origem} → {statusOrdemTarget.destino}
+              </p>
+              
+              <div className="flex flex-col gap-2 mb-6">
+                <label className="text-sm text-text-muted">Novo Status</label>
+                <select 
+                  className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                >
+                  <option value="pendente">Pendente</option>
+                  <option value="em_andamento">Em Andamento</option>
+                  <option value="concluido">Concluída</option>
+                  <option value="cancelado">Cancelada</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <Button type="button" variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancelar</Button>
+                <Button type="button" onClick={handleQuickStatusChange} className="bg-primary hover:opacity-90">Salvar Status</Button>
+              </div>
+           </div>
         </div>
       )}
     </div>

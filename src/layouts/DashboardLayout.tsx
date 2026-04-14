@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
 import { Navigate, Outlet } from 'react-router-dom';
