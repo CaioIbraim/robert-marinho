@@ -11,6 +11,7 @@ import { Landing } from "./pages/Landing";
 import { Profile } from './pages/Profile';
 import { Financeiro } from './pages/Financeiro';
 import { Notificacoes } from './pages/Notificacoes';
+import { MapaRota } from './pages/MapaRota';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] text-text-muted">
@@ -39,6 +40,7 @@ function App() {
           <Route path="/ordens" element={<Ordens />} />
           <Route path="/financeiro" element={<Financeiro />} />
           <Route path="/notificacoes" element={<Notificacoes />} />
+          <Route path="/mapa" element={<MapaRota />} />
           <Route path="/usuarios" element={<Placeholder title="Gestão de Usuários" />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
