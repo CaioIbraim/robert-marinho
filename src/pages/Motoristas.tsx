@@ -26,7 +26,7 @@ export const Motoristas = () => {
   const itemsPerPage = 10;
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<MotoristaFormData>({
-    resolver: zodResolver(motoristaSchema),
+    resolver: zodResolver(motoristaSchema) as any,
   });
 
   const loadMotoristas = async () => {
@@ -73,6 +73,11 @@ export const Motoristas = () => {
       cpf: motorista.cpf,
       telefone: motorista.telefone,
       cnh: motorista.cnh,
+      categoria_cnh: motorista.categoria_cnh || '',
+      validade_cnh: motorista.validade_cnh || '',
+      tipo_vinculo: motorista.tipo_vinculo || 'fixo',
+      pix_key: motorista.pix_key || '',
+      status: motorista.status || 'ativo',
     });
     setIsModalOpen(true);
   };
@@ -95,8 +100,8 @@ export const Motoristas = () => {
   };
 
   const filteredMotoristas = motoristas.filter(m => 
-    (m.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.cpf.includes(searchTerm)) &&
+    ((m.nome?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (m.cpf || '').includes(searchTerm)) &&
     (statusFilter === '' || m.status === statusFilter)
   );
 
@@ -135,7 +140,7 @@ export const Motoristas = () => {
         </div>
         <Button onClick={() => { 
           setEditingId(null); 
-          reset({ nome: '', cpf: '', telefone: '', email: '', cnh: '', categoria_cnh: '', validade_cnh: '', status: 'ativo' }); 
+          reset({ nome: '', cpf: '', telefone: '', email: '', cnh: '', categoria_cnh: '', validade_cnh: '', tipo_vinculo: 'fixo', pix_key: '', status: 'ativo' }); 
           setIsModalOpen(true); 
         }} className="flex gap-2">
           <Plus size={20} /> Novo Motorista
@@ -185,6 +190,8 @@ export const Motoristas = () => {
                 <th className="px-6 py-4">CPF</th>
                 <th className="px-6 py-4">Telefone</th>
                 <th className="px-6 py-4">CNH</th>
+                <th className="px-6 py-4">Tipo</th>
+                <th className="px-6 py-4">Chave PIX</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
@@ -206,6 +213,14 @@ export const Motoristas = () => {
                   <td className="px-6 py-4 text-text-muted">{motorista.cpf}</td>
                   <td className="px-6 py-4 text-text-muted">{motorista.telefone}</td>
                   <td className="px-6 py-4 text-text-muted">{motorista.cnh}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
+                      motorista.tipo_vinculo === 'terceiro' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'
+                    }`}>
+                      {motorista.tipo_vinculo === 'terceiro' ? 'Terceiro' : 'Fixo'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-text-muted text-xs">{motorista.pix_key || '—'}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => handleEdit(motorista)} className="p-1.5 text-text-muted hover:text-primary transition-colors">
@@ -291,6 +306,27 @@ export const Motoristas = () => {
                   {...register('cnh')}
                 />
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Validade da CNH"
+                  type="date"
+                  error={errors.validade_cnh?.message}
+                  {...register('validade_cnh')}
+                />
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-text-muted">Tipo de Vínculo</label>
+                  <select {...register('tipo_vinculo')} className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm input-focus text-white">
+                    <option value="fixo">Fixo (Frota própria)</option>
+                    <option value="terceiro">Terceiro (Free Lance)</option>
+                  </select>
+                </div>
+              </div>
+              <Input
+                label="Chave PIX"
+                placeholder="CPF, e-mail, telefone ou chave aleatória"
+                error={errors.pix_key?.message}
+                {...register('pix_key')}
+              />
 
               <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-border">
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>

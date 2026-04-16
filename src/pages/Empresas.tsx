@@ -94,8 +94,8 @@ export const Empresas = () => {
   };
 
   const filteredEmpresas = empresas.filter(e => 
-    e.razao_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.cnpj.includes(searchTerm)
+    (e.razao_social?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (e.cnpj || '').includes(searchTerm)
   );
 
   const totalPages = Math.ceil(filteredEmpresas.length / itemsPerPage);

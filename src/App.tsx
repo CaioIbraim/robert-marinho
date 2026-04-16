@@ -12,6 +12,7 @@ import { Profile } from './pages/Profile';
 import { Financeiro } from './pages/Financeiro';
 import { Notificacoes } from './pages/Notificacoes';
 import { MapaRota } from './pages/MapaRota';
+import { Tarifarios } from './pages/Tarifarios';
 import { LoadingOverlay } from './components/ui/LoadingOverlay';
 
 const Placeholder = ({ title }: { title: string }) => (
@@ -39,6 +40,7 @@ function App() {
           <Route path="/motoristas" element={<Motoristas />} />
           <Route path="/veiculos" element={<Veiculos />} />
           <Route path="/ordens" element={<Ordens />} />
+          <Route path="/tarifarios" element={<Tarifarios />} />
           <Route path="/financeiro" element={<Financeiro />} />
           <Route path="/notificacoes" element={<Notificacoes />} />
           <Route path="/mapa" element={<MapaRota />} />

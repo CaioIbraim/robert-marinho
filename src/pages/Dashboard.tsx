@@ -88,7 +88,19 @@ export const Dashboard = () => {
 
         <StatCard
           title="Faturamento"
-          value={`R$ ${data?.faturamento?.toFixed(2) || 0}`}
+          value={`R$ ${data?.faturamento?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
+          icon={FaDollarSign}
+        />
+
+        <StatCard
+          title="Custos (Repasse)"
+          value={`R$ ${data?.repasse?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
+          icon={FaTruck}
+        />
+
+        <StatCard
+          title="Lucro Líquido"
+          value={`R$ ${data?.lucro?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
           icon={FaDollarSign}
         />
       </div>

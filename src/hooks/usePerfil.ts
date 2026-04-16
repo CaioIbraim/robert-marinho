@@ -14,9 +14,12 @@ export const usePerfil = () => {
         .from('perfis')
         .select('*')
         .eq('id', user!.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('usePerfil Error:', error);
+        return null;
+      }
 
       return data;
     }

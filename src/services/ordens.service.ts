@@ -4,18 +4,39 @@ import type { OrdemServicoFormData } from '../schemas';
 
 export const ordemService = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('ordens_servico')
-      .select(`
-        *,
-        empresa:empresas(*),
-        motorista:motoristas(*),
-        veiculo:veiculos(*)
-      `)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data as OrdemServico[];
+    // Tenta primeiro o select completo com todos os joins
+    try {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .select(`
+          *,
+          empresa:empresas(*),
+          motorista:motoristas(*),
+          veiculo:veiculos(*),
+          tarifario:tarifarios(*)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (!error) return data as OrdemServico[];
+      
+      // Se der erro de coluna (provavelmente tarifario), tenta sem o join de tarifario
+      console.warn('Erro ao carregar OS com tarifários, tentando modo simplificado:', error);
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('ordens_servico')
+        .select(`
+          *,
+          empresa:empresas(*),
+          motorista:motoristas(*),
+          veiculo:veiculos(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (fallbackError) throw fallbackError;
+      return fallbackData as OrdemServico[];
+    } catch (err) {
+      console.error('Erro total ao buscar ordens:', err);
+      throw err;
+    }
   },
 
   async getById(id: string) {
@@ -35,9 +56,16 @@ export const ordemService = {
   },
 
   async create(data: OrdemServicoFormData) {
+    // Sanitização para evitar erro de timestamp vazio
+    const sanitizedData = {
+      ...data,
+      horario_inicio: data.horario_inicio || null,
+      horario_fim: data.horario_fim || null,
+    };
+
     const { data: newOrdem, error } = await supabase
       .from('ordens_servico')
-      .insert([data])
+      .insert([sanitizedData])
       .select('id')
       .single();
     
@@ -47,7 +75,7 @@ export const ordemService = {
       .from('recebimentos')
       .insert([{
         ordem_id: newOrdem.id,
-        valor: data.valor_total,
+        valor: data.valor_faturamento,
         status: 'pendente'
       }]);
       
@@ -55,9 +83,13 @@ export const ordemService = {
   },
 
   async update(id: string, data: Partial<OrdemServicoFormData>) {
+    const sanitizedData = { ...data };
+    if (sanitizedData.horario_inicio === '') sanitizedData.horario_inicio = null;
+    if (sanitizedData.horario_fim === '') sanitizedData.horario_fim = null;
+
     const { error } = await supabase
       .from('ordens_servico')
-      .update(data)
+      .update(sanitizedData)
       .eq('id', id);
     
     if (error) throw error;

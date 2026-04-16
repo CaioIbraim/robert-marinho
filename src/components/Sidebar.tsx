@@ -11,7 +11,8 @@ import {
   FaTimes,
   FaDollarSign,
   FaBell,
-  FaMap
+  FaMap,
+  FaTag
 } from 'react-icons/fa';
 
 import type { IconType } from 'react-icons';
@@ -100,6 +101,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             <SidebarItem to="/motoristas" icon={FaUsers} label="Motoristas" onClick={onClose} />
             <SidebarItem to="/veiculos" icon={FaTruck} label="Veículos" onClick={onClose} />
             <SidebarItem to="/ordens" icon={FaFileAlt} label="Ordens de Serviço" onClick={onClose} />
+            <SidebarItem to="/tarifarios" icon={FaTag} label="Tabela de Tarifas" onClick={onClose} />
             <SidebarItem to="/financeiro" icon={FaDollarSign} label="Financeiro" onClick={onClose} />
             <SidebarItem to="/notificacoes" icon={FaBell} label="Notificações" onClick={onClose} />
             <SidebarItem to="/mapa" icon={FaMap} label="Mapa de Rotas" onClick={onClose} />

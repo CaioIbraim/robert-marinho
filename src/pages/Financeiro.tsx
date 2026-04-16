@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, DollarSign, CheckCircle, Download, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, DollarSign, CheckCircle, Download, FileText, AlertTriangle, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { notificationService } from '../services/notifications.service';
 import { useLoadingStore } from '../stores/useLoadingStore';
@@ -42,8 +42,18 @@ export const Financeiro = () => {
   const loadData = async () => {
     try {
       const [recRes, ordensRes] = await Promise.all([
-        supabase.from('recebimentos').select('*, ordem:ordens_servico(*)').order('created_at', { ascending: false }),
-        supabase.from('ordens_servico').select('id, numero_os, origem, destino, valor_total').in('status', ['pendente', 'em_andamento', 'concluido'])
+        supabase.from('recebimentos')
+          .select(`
+            *,
+            ordem:ordens_servico(
+              *,
+              motorista:motoristas(*)
+            )
+          `)
+          .order('created_at', { ascending: false }),
+        supabase.from('ordens_servico')
+          .select('id, numero_os, origem, destino, valor_faturamento')
+          .in('status', ['pendente', 'em_andamento', 'concluido'])
       ]);
       setRecebimentos(recRes.data || []);
       setOrdens(ordensRes.data || []);
@@ -57,6 +67,21 @@ export const Financeiro = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Totalizadores
+  const stats = recebimentos.reduce((acc, r) => {
+    const valor = Number(r.valor || 0);
+    const custo = Number(r.ordem?.valor_custo_motorista || 0);
+    
+    if (r.status === 'pago') {
+      acc.totalRecebido += valor;
+      acc.totalLucro += (valor - custo);
+      acc.totalRepasse += custo;
+    } else if (r.status === 'pendente') {
+      acc.totalPendente += valor;
+    }
+    return acc;
+  }, { totalRecebido: 0, totalPendente: 0, totalLucro: 0, totalRepasse: 0 });
 
   const onSubmit: SubmitHandler<RecebimentoFormData> = async (data) => {
     const linkedOrdem = ordens.find(o => o.id === data.ordem_id);
@@ -179,17 +204,19 @@ export const Financeiro = () => {
   };
 
   const filtered = recebimentos.filter(r => 
-    r.forma_pagamento?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.ordem?.origem?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.ordem?.numero_os?.toLowerCase().includes(searchTerm.toLowerCase())
+    (r.forma_pagamento?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+    (r.ordem?.origem?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (r.ordem?.numero_os?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   const handleExportExcel = () => {
     const data = filtered.map(r => ({
       ID: r.id,
       'OS Origem/Destino': r.ordem ? `${r.ordem.origem} → ${r.ordem.destino}` : '',
-      Status: r.status,
-      'Valor Recebido': r.valor,
+      'Status Recebimento': r.status,
+      'Valor Recebido (Bruto)': r.valor,
+      'Repasse Motorista': r.ordem?.valor_custo_motorista || 0,
+      'Lucro Líquido': r.valor - (r.ordem?.valor_custo_motorista || 0),
       'Data Pagamento': r.data_pagamento,
       'Forma Pagamento': r.forma_pagamento
     }));
@@ -200,14 +227,18 @@ export const Financeiro = () => {
     const columns = [
       { header: 'Ordem de Serviço', dataKey: 'os' },
       { header: 'Status', dataKey: 'status' },
-      { header: 'Forma Pgto', dataKey: 'forma_pagamento' },
-      { header: 'Valor R$', dataKey: 'valor' }
+      { header: 'Valor Bruto', dataKey: 'valor_bruto' },
+      { header: 'Repasse', dataKey: 'repasse' },
+      { header: 'Lucro', dataKey: 'lucro' }
     ];
     const data = filtered.map(r => ({
       ...r,
-      os: r.ordem ? `${r.ordem.origem} → ${r.ordem.destino}` : '-'
+      os: r.ordem ? `${r.ordem.origem} → ${r.ordem.destino}` : '-',
+      valor_bruto: `R$ ${Number(r.valor).toLocaleString('pt-BR')}`,
+      repasse: `R$ ${Number(r.ordem?.valor_custo_motorista || 0).toLocaleString('pt-BR')}`,
+      lucro: `R$ ${Number(r.valor - (r.ordem?.valor_custo_motorista || 0)).toLocaleString('pt-BR')}`
     }));
-    exportToPDF(data, columns, 'recebimentos_financeiros', 'Relatório de Recebimentos');
+    exportToPDF(data, columns, 'recebimentos_financeiros', 'Relatório de Recebimentos e Lucratividade');
   };
 
   return (
@@ -224,6 +255,56 @@ export const Financeiro = () => {
         }} className="flex gap-2 bg-green-600 hover:bg-green-700">
           <Plus size={20} /> Lançar Recebimento
         </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="flex items-center gap-4 border-l-4 border-l-green-500">
+          <div className="p-3 bg-green-500/10 text-green-500 rounded-full">
+            <DollarSign size={24} />
+          </div>
+          <div>
+            <p className="text-xs text-text-muted uppercase font-bold tracking-wider">Total Recebido</p>
+            <p className="text-xl font-bold text-white leading-tight">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalRecebido)}
+            </p>
+          </div>
+        </Card>
+        
+        <Card className="flex items-center gap-4 border-l-4 border-l-yellow-500">
+          <div className="p-3 bg-yellow-500/10 text-yellow-500 rounded-full">
+            <RefreshCw size={24} />
+          </div>
+          <div>
+            <p className="text-xs text-text-muted uppercase font-bold tracking-wider">A Receber (OS em Aberto)</p>
+            <p className="text-xl font-bold text-white leading-tight">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalPendente)}
+            </p>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4 border-l-4 border-l-orange-500">
+          <div className="p-3 bg-orange-500/10 text-orange-500 rounded-full">
+            <TrendingDown size={24} />
+          </div>
+          <div>
+            <p className="text-xs text-text-muted uppercase font-bold tracking-wider">Total em Repasse</p>
+            <p className="text-xl font-bold text-white leading-tight">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalRepasse)}
+            </p>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4 border-l-4 border-l-primary">
+          <div className="p-3 bg-primary/10 text-primary rounded-full">
+            <TrendingUp size={24} />
+          </div>
+          <div>
+            <p className="text-xs text-text-muted uppercase font-bold tracking-wider">Lucro Líquido Real</p>
+            <p className="text-xl font-bold text-white leading-tight font-primary">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalLucro)}
+            </p>
+          </div>
+        </Card>
       </div>
 
       <Card className="!p-0 overflow-visible">
@@ -255,7 +336,9 @@ export const Financeiro = () => {
                 <th className="px-6 py-4">Ordem de Serviço</th>
                 <th className="px-6 py-4">Data Pagto.</th>
                 <th className="px-6 py-4">Forma</th>
-                <th className="px-6 py-4">Valor</th>
+                <th className="px-6 py-4">Bruto</th>
+                <th className="px-6 py-4">Repasse</th>
+                <th className="px-6 py-4">Lucro</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
@@ -286,6 +369,12 @@ export const Financeiro = () => {
                   </td>
                   <td className="px-6 py-4 font-bold text-white">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.valor)}
+                  </td>
+                  <td className="px-6 py-4 text-orange-500 font-medium whitespace-nowrap">
+                    {r.ordem?.valor_custo_motorista ? `- ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.ordem.valor_custo_motorista)}` : 'R$ 0,00'}
+                  </td>
+                  <td className="px-6 py-4 text-green-500 font-bold whitespace-nowrap">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.valor - (r.ordem?.valor_custo_motorista || 0))}
                   </td>
                   <td className="px-6 py-4">
                      <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
@@ -334,7 +423,7 @@ export const Financeiro = () => {
                   <option value="">Selecione uma ordem correspondente</option>
                   {ordens.map(o => (
                      <option key={o.id} value={o.id}>
-                        {o.numero_os || o.id.slice(0,6)}: {o.origem} → {o.destino} ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(o.valor_total)})
+                        {o.numero_os || o.id.slice(0,6)}: {o.origem} → {o.destino} ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(o.valor_faturamento)})
                      </option>
                   ))}
                 </select>
