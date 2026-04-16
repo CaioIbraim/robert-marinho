@@ -11,6 +11,9 @@ import { Landing } from "./pages/Landing";
 import { Profile } from './pages/Profile';
 import { Financeiro } from './pages/Financeiro';
 import { Notificacoes } from './pages/Notificacoes';
+import { MapaRota } from './pages/MapaRota';
+import { Tarifarios } from './pages/Tarifarios';
+import { LoadingOverlay } from './components/ui/LoadingOverlay';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] text-text-muted">
@@ -37,8 +40,10 @@ function App() {
           <Route path="/motoristas" element={<Motoristas />} />
           <Route path="/veiculos" element={<Veiculos />} />
           <Route path="/ordens" element={<Ordens />} />
+          <Route path="/tarifarios" element={<Tarifarios />} />
           <Route path="/financeiro" element={<Financeiro />} />
           <Route path="/notificacoes" element={<Notificacoes />} />
+          <Route path="/mapa" element={<MapaRota />} />
           <Route path="/usuarios" element={<Placeholder title="Gestão de Usuários" />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
@@ -47,6 +52,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
+      <LoadingOverlay />
     </BrowserRouter>
   );
 }

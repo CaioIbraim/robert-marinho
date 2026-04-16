@@ -10,19 +10,24 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { exportToExcel, exportToPDF } from '../utils/export';
+import { useLoadingStore } from '../stores/useLoadingStore';
+import { showToast, showConfirm } from '../utils/swal';
 
 export const Motoristas = () => {
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  
+  const { setGlobalLoading } = useLoadingStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [tipoFilter, setTipoFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<MotoristaFormData>({
-    resolver: zodResolver(motoristaSchema),
+    resolver: zodResolver(motoristaSchema) as any,
   });
 
   const loadMotoristas = async () => {
@@ -32,7 +37,7 @@ export const Motoristas = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsPageLoading(false);
     }
   };
 
@@ -42,10 +47,13 @@ export const Motoristas = () => {
 
   const onSubmit = async (data: MotoristaFormData) => {
     try {
+      setGlobalLoading(true);
       if (editingId) {
         await motoristaService.update(editingId, data);
+        showToast('Motorista atualizado!');
       } else {
         await motoristaService.create(data);
+        showToast('Motorista cadastrado!');
       }
       setIsModalOpen(false);
       reset();
@@ -53,6 +61,9 @@ export const Motoristas = () => {
       loadMotoristas();
     } catch (err) {
       console.error(err);
+      showToast('Erro ao salvar motorista', 'error');
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
@@ -63,25 +74,37 @@ export const Motoristas = () => {
       cpf: motorista.cpf,
       telefone: motorista.telefone,
       cnh: motorista.cnh,
+      categoria_cnh: motorista.categoria_cnh || '',
+      validade_cnh: motorista.validade_cnh || '',
+      tipo_vinculo: motorista.tipo_vinculo || 'fixo',
+      pix_key: motorista.pix_key || '',
+      status: motorista.status || 'ativo',
     });
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja realmente excluir este motorista?')) {
+    const result = await showConfirm('Excluir Motorista', 'Deseja realmente excluir este motorista?');
+    if (result.isConfirmed) {
       try {
+        setGlobalLoading(true);
         await motoristaService.delete(id);
+        showToast('Motorista excluído');
         loadMotoristas();
       } catch (err) {
         console.error(err);
+        showToast('Erro ao excluir motorista', 'error');
+      } finally {
+        setGlobalLoading(false);
       }
     }
   };
 
   const filteredMotoristas = motoristas.filter(m => 
-    (m.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.cpf.includes(searchTerm)) &&
-    (statusFilter === '' || m.status === statusFilter)
+    ((m.nome?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (m.cpf || '').includes(searchTerm)) &&
+    (statusFilter === '' || m.status === statusFilter) &&
+    (tipoFilter === '' || m.tipo_vinculo === tipoFilter)
   );
 
   const totalPages = Math.ceil(filteredMotoristas.length / itemsPerPage);
@@ -119,7 +142,7 @@ export const Motoristas = () => {
         </div>
         <Button onClick={() => { 
           setEditingId(null); 
-          reset({ nome: '', cpf: '', telefone: '', email: '', cnh: '', categoria_cnh: '', validade_cnh: '', status: 'ativo' }); 
+          reset({ nome: '', cpf: '', telefone: '', email: '', cnh: '', categoria_cnh: '', validade_cnh: '', tipo_vinculo: 'fixo', pix_key: '', status: 'ativo' }); 
           setIsModalOpen(true); 
         }} className="flex gap-2">
           <Plus size={20} /> Novo Motorista
@@ -151,6 +174,19 @@ export const Motoristas = () => {
                   <option value="inativo">Inativo</option>
                 </select>
              </div>
+
+             <div className="relative w-full sm:w-40">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                <select 
+                  className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
+                  value={tipoFilter}
+                  onChange={(e) => { setTipoFilter(e.target.value); setCurrentPage(1); }}
+                >
+                  <option value="">Todos Tipos</option>
+                  <option value="fixo">Fixo</option>
+                  <option value="terceiro">Terceiro</option>
+                </select>
+             </div>
              
              <button onClick={handleExportExcel} className="p-2 bg-surface border border-border rounded-md hover:border-green-500 hover:text-green-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para Excel">
                 <Download size={18} />
@@ -169,11 +205,13 @@ export const Motoristas = () => {
                 <th className="px-6 py-4">CPF</th>
                 <th className="px-6 py-4">Telefone</th>
                 <th className="px-6 py-4">CNH</th>
+                <th className="px-6 py-4">Tipo</th>
+                <th className="px-6 py-4">Chave PIX</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {isPageLoading ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Carregando...</td></tr>
               ) : paginatedMotoristas.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Nenhum motorista encontrado.</td></tr>
@@ -190,6 +228,14 @@ export const Motoristas = () => {
                   <td className="px-6 py-4 text-text-muted">{motorista.cpf}</td>
                   <td className="px-6 py-4 text-text-muted">{motorista.telefone}</td>
                   <td className="px-6 py-4 text-text-muted">{motorista.cnh}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
+                      motorista.tipo_vinculo === 'terceiro' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'
+                    }`}>
+                      {motorista.tipo_vinculo === 'terceiro' ? 'Terceiro' : 'Fixo'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-text-muted text-xs">{motorista.pix_key || '—'}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => handleEdit(motorista)} className="p-1.5 text-text-muted hover:text-primary transition-colors">
@@ -275,6 +321,27 @@ export const Motoristas = () => {
                   {...register('cnh')}
                 />
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Validade da CNH"
+                  type="date"
+                  error={errors.validade_cnh?.message}
+                  {...register('validade_cnh')}
+                />
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-text-muted">Tipo de Vínculo</label>
+                  <select {...register('tipo_vinculo')} className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm input-focus text-white">
+                    <option value="fixo">Fixo (Frota própria)</option>
+                    <option value="terceiro">Terceiro (Free Lance)</option>
+                  </select>
+                </div>
+              </div>
+              <Input
+                label="Chave PIX"
+                placeholder="CPF, e-mail, telefone ou chave aleatória"
+                error={errors.pix_key?.message}
+                {...register('pix_key')}
+              />
 
               <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-border">
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>

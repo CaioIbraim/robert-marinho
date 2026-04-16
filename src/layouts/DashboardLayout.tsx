@@ -1,12 +1,25 @@
 import { useState } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useEffect } from 'react';
+import { useLoadingStore } from '../stores/useLoadingStore';
 
 export const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
+  const { setGlobalLoading } = useLoadingStore();
+
+  useEffect(() => {
+    setGlobalLoading(true);
+    const timer = setTimeout(() => {
+      setGlobalLoading(false);
+    }, 400);
+    
+    return () => clearTimeout(timer);
+  }, [location.pathname, setGlobalLoading]);
 
   if (loading) {
     return (

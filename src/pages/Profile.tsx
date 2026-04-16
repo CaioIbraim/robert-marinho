@@ -4,20 +4,34 @@ import imageCompression from 'browser-image-compression';
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../stores/authStore';
 
+interface CroppedAreaPixels {
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+}
+
 export const Profile = () => {
   const user = useAuthStore((state) => state.user);
 
-  const [nome, setNome] = useState(user?.user_metadata?.nome || '');
+  const [nome, setNome] = useState(
+    user?.user_metadata?.full_name || ''
+  );
+
   const [loading, setLoading] = useState(false);
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || '');
+  const [avatarUrl, setAvatarUrl] = useState(
+    user?.user_metadata?.avatar_url || ''
+  );
 
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<CroppedAreaPixels | null>(null);
 
-  // 📸 Seleção da imagem
+  /* =========================
+     SELEÇÃO DE IMAGEM
+  ========================= */
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
       const file = e.target.files[0];
@@ -25,20 +39,33 @@ export const Profile = () => {
     }
   };
 
-  // ✂️ captura área cortada
-  const onCropComplete = useCallback((_: any, croppedPixels: any) => {
-    setCroppedAreaPixels(croppedPixels);
-  }, []);
+  /* =========================
+     CROP
+  ========================= */
+  const onCropComplete = useCallback(
+    (_: unknown, croppedPixels: CroppedAreaPixels) => {
+      setCroppedAreaPixels(croppedPixels);
+    },
+    []
+  );
 
-  // 🔧 cria imagem cortada
-  const getCroppedImg = async () => {
+  /* =========================
+     GERAR IMAGEM CORTADA
+  ========================= */
+  const getCroppedImg = async (): Promise<Blob> => {
+    if (!imageSrc || !croppedAreaPixels) {
+      throw new Error('Imagem não selecionada');
+    }
+
     const image = new Image();
-    image.src = imageSrc!;
+    image.src = imageSrc;
 
     await new Promise((resolve) => (image.onload = resolve));
 
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) throw new Error('Erro ao criar canvas');
 
     canvas.width = croppedAreaPixels.width;
     canvas.height = croppedAreaPixels.height;
@@ -55,19 +82,25 @@ export const Profile = () => {
       croppedAreaPixels.height
     );
 
-    return new Promise<Blob>((resolve) => {
-      canvas.toBlob((blob) => resolve(blob!), 'image/jpeg');
+    return new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) reject(new Error('Erro ao gerar imagem'));
+        else resolve(blob);
+      }, 'image/jpeg');
     });
   };
 
-  // 🚀 Upload final
+  /* =========================
+     UPLOAD AVATAR
+  ========================= */
   const handleUpload = async () => {
+    if (!user) return;
+
     try {
       setLoading(true);
 
       const croppedBlob = await getCroppedImg();
 
-      // ⚡ compressão
       const compressedFile = await imageCompression(
         new File([croppedBlob], 'avatar.jpg', { type: 'image/jpeg' }),
         {
@@ -76,30 +109,39 @@ export const Profile = () => {
         }
       );
 
-      const filePath = `${user!.id}/${Date.now()}.jpg`;
+      const filePath = `${user.id}/${Date.now()}.jpg`;
 
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, compressedFile, { upsert: true });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
       const { data } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
-      setAvatarUrl(data.publicUrl);
+      const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
 
-      await supabase.auth.updateUser({
-        data: {
-          avatar_url: data.publicUrl
-        }
+      setAvatarUrl(publicUrl);
+
+      // AUTH
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl }
       });
 
-      await supabase
+      if (authError) throw authError;
+
+      // DB (UPSERT)
+      const { error: perfilError } = await supabase
         .from('perfis')
-        .update({ avatar_url: data.publicUrl })
-        .eq('id', user!.id);
+        .upsert({
+          id: user.id,
+          email: user.email,
+          avatar_url: publicUrl,
+        });
+
+      if (perfilError) throw perfilError;
 
       setImageSrc(null);
 
@@ -111,31 +153,44 @@ export const Profile = () => {
     }
   };
 
-  // 💾 salvar nome
+  /* =========================
+     SALVAR NOME
+  ========================= */
   const handleSave = async () => {
-  if (!user) return;
+    if (!user) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    // atualiza auth
-    await supabase.auth.updateUser({
-      data: { nome }
-    });
+    try {
+      // AUTH
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { full_name: nome }
+      });
 
-    // atualiza tabela perfis
-    await supabase
-      .from('perfis')
-      .update({ nome })
-      .eq('id', user.id);
+      if (authError) throw authError;
 
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
+      // DB (UPSERT)
+      const { error: perfilError } = await supabase
+        .from('perfis')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          full_name: nome,
+        });
 
+      if (perfilError) throw perfilError;
+
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================
+     UI
+  ========================= */
   return (
     <div className="max-w-3xl mx-auto space-y-8">
 
@@ -161,7 +216,7 @@ export const Profile = () => {
           </label>
         </div>
 
-        {/* CROP MODAL */}
+        {/* MODAL CROP */}
         {imageSrc && (
           <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
             <div className="bg-surface p-6 rounded-lg w-[400px] space-y-4">

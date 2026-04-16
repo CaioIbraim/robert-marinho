@@ -27,6 +27,8 @@ export type Motorista = {
   cnh: string;
   categoria_cnh?: string;
   validade_cnh?: string;
+  tipo_vinculo: 'fixo' | 'terceiro';
+  pix_key?: string;
   status: string;
   created_at: string;
   updated_at?: string;
@@ -37,18 +39,39 @@ export type Veiculo = {
   placa: string;
   modelo: string;
   capacidade?: number;
+  meta_faturamento?: number;
+  meta_faturamento_mensal?: number;
+  faturamento_real?: number; 
   status: 'ativo' | 'inativo';
+  created_at: string;
+};
+
+export type Tarifario = {
+  id: string;
+  origem: string;
+  destino: string;
+  valor_venda: number;
+  valor_custo?: number;
+  descricao?: string;
   created_at: string;
 };
 
 export type OrdemServico = {
   id: string;
+  numero_os?: string;
   empresa_id: string;
   motorista_id: string;
   veiculo_id: string;
+  tarifario_id?: string;
   origem: string;
   destino: string;
-  valor_total: number;
+  passageiro?: string;
+  voucher?: string;
+  data_execucao: string;
+  horario_inicio?: string;
+  horario_fim?: string;
+  valor_faturamento: number;
+  valor_custo_motorista?: number;
   status: 'pendente' | 'em_andamento' | 'concluido' | 'cancelado';
   financeiro_status: 'pendente' | 'pago';
   created_at: string;
@@ -57,6 +80,7 @@ export type OrdemServico = {
   empresa?: Empresa;
   motorista?: Motorista;
   veiculo?: Veiculo;
+  tarifario?: Tarifario;
 };
 
 export type Financeiro = {

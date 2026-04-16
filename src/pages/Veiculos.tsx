@@ -11,10 +11,14 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { exportToExcel, exportToPDF } from '../utils/export';
+import { useLoadingStore } from '../stores/useLoadingStore';
+import { showToast, showConfirm } from '../utils/swal';
 
 export const Veiculos = () => {
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  
+  const { setGlobalLoading } = useLoadingStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,7 +37,7 @@ export const Veiculos = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsPageLoading(false);
     }
   };
 
@@ -43,10 +47,13 @@ export const Veiculos = () => {
 
   const onSubmit: SubmitHandler<VeiculoFormData> = async (data) => {
     try {
+      setGlobalLoading(true);
       if (editingId) {
         await veiculoService.update(editingId, data);
+        showToast('Veículo atualizado!');
       } else {
         await veiculoService.create(data);
+        showToast('Veículo cadastrado!');
       }
       setIsModalOpen(false);
       reset();
@@ -54,6 +61,9 @@ export const Veiculos = () => {
       loadVeiculos();
     } catch (err) {
       console.error(err);
+      showToast('Erro ao salvar veículo', 'error');
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
@@ -63,25 +73,32 @@ export const Veiculos = () => {
       placa: veiculo.placa,
       modelo: veiculo.modelo,
       capacidade: veiculo.capacidade,
+      meta_faturamento: veiculo.meta_faturamento,
       status: veiculo.status,
     });
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja realmente excluir este veículo?')) {
+    const result = await showConfirm('Excluir Veículo', 'Deseja realmente excluir este veículo?');
+    if (result.isConfirmed) {
       try {
+        setGlobalLoading(true);
         await veiculoService.delete(id);
+        showToast('Veículo excluído');
         loadVeiculos();
       } catch (err) {
         console.error(err);
+        showToast('Erro ao excluir veículo', 'error');
+      } finally {
+        setGlobalLoading(false);
       }
     }
   };
 
   const filteredVeiculos = veiculos.filter(v => 
-    (v.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.modelo.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    ((v.placa?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (v.modelo?.toLowerCase() || '').includes(searchTerm.toLowerCase())) &&
     (statusFilter === '' || v.status === statusFilter)
   );
 
@@ -167,12 +184,13 @@ export const Veiculos = () => {
                 <th className="px-6 py-4">Placa</th>
                 <th className="px-6 py-4">Modelo</th>
                 <th className="px-6 py-4">Capacidade (kg)</th>
+                <th className="px-6 py-4">Faturamento / Meta</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {isPageLoading ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Carregando...</td></tr>
               ) : paginatedVeiculos.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Nenhum veículo encontrado.</td></tr>
@@ -181,6 +199,24 @@ export const Veiculos = () => {
                   <td className="px-6 py-4 font-bold text-primary uppercase">{veiculo.placa}</td>
                   <td className="px-6 py-4 font-medium text-white">{veiculo.modelo}</td>
                   <td className="px-6 py-4 text-text-muted">{veiculo.capacidade || 'N/A'}</td>
+                  <td className="px-6 py-4">
+                    {veiculo.meta_faturamento ? (
+                      <div className="space-y-1 min-w-[120px]">
+                        <div className="flex justify-between text-xs text-text-muted">
+                          <span>R$ {(veiculo.faturamento_real || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</span>
+                          <span>/ R$ {veiculo.meta_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</span>
+                        </div>
+                        <div className="w-full bg-border rounded-full h-1.5">
+                          <div
+                            className="h-1.5 rounded-full bg-primary transition-all"
+                            style={{ width: `${Math.min(100, ((veiculo.faturamento_real || 0) / veiculo.meta_faturamento) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-text-muted text-xs">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold ${veiculo.status === 'ativo' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
                       {veiculo.status}
@@ -267,16 +303,23 @@ export const Veiculos = () => {
                   error={errors.capacidade?.message}
                   {...register('capacidade')}
                 />
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-text-muted">Status</label>
-                  <select 
-                    {...register('status')}
-                    className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm input-focus text-white"
-                  >
-                    <option value="ativo">Ativo</option>
-                    <option value="inativo">Inativo</option>
-                  </select>
-                </div>
+                <Input
+                  label="Meta de Faturamento Mensal (R$)"
+                  type="number"
+                  placeholder="Ex: 15000"
+                  error={errors.meta_faturamento?.message}
+                  {...register('meta_faturamento')}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-text-muted">Status</label>
+                <select 
+                  {...register('status')}
+                  className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm input-focus text-white"
+                >
+                  <option value="ativo">Ativo</option>
+                  <option value="inativo">Inativo</option>
+                </select>
               </div>
 
               <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-border">
