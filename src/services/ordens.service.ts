@@ -83,17 +83,19 @@ export const ordemService = {
   },
 
   async update(id: string, data: Partial<OrdemServicoFormData>) {
-    const sanitizedData = { ...data };
-    if (sanitizedData.horario_inicio === '') sanitizedData.horario_inicio = null;
-    if (sanitizedData.horario_fim === '') sanitizedData.horario_fim = null;
+  const sanitizedData: Partial<OrdemServicoFormData> = {
+    ...data,
+    horario_inicio: data.horario_inicio || null,
+    horario_fim: data.horario_fim || null,
+  };
 
-    const { error } = await supabase
-      .from('ordens_servico')
-      .update(sanitizedData)
-      .eq('id', id);
-    
-    if (error) throw error;
-  },
+  const { error } = await supabase
+    .from('ordens_servico')
+    .update(sanitizedData)
+    .eq('id', id);
+
+  if (error) throw error;
+},
 
   async delete(id: string) {
     const { error } = await supabase

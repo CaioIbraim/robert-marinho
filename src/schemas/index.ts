@@ -39,8 +39,10 @@ export const ordemServicoSchema = z.object({
   destino: z.string().min(2, 'Destino inválido'),
   passageiro: z.string().optional(),
   voucher: z.string().optional(),
-  horario_inicio: z.string().optional(),
-  horario_fim: z.string().optional(),
+
+  horario_inicio: z.string().nullable().optional(),
+  horario_fim: z.string().nullable().optional(),
+
   data_execucao: z.string().min(1, 'Data de execução é obrigatória'),
   valor_faturamento: z.coerce.number().min(0, 'Valor deve ser positivo'),
   valor_custo_motorista: z.coerce.number().min(0).optional(),
