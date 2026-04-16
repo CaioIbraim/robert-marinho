@@ -22,6 +22,7 @@ export const Motoristas = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [tipoFilter, setTipoFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -102,7 +103,8 @@ export const Motoristas = () => {
   const filteredMotoristas = motoristas.filter(m => 
     ((m.nome?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (m.cpf || '').includes(searchTerm)) &&
-    (statusFilter === '' || m.status === statusFilter)
+    (statusFilter === '' || m.status === statusFilter) &&
+    (tipoFilter === '' || m.tipo_vinculo === tipoFilter)
   );
 
   const totalPages = Math.ceil(filteredMotoristas.length / itemsPerPage);
@@ -170,6 +172,19 @@ export const Motoristas = () => {
                   <option value="">Status</option>
                   <option value="ativo">Ativo</option>
                   <option value="inativo">Inativo</option>
+                </select>
+             </div>
+
+             <div className="relative w-full sm:w-40">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                <select 
+                  className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
+                  value={tipoFilter}
+                  onChange={(e) => { setTipoFilter(e.target.value); setCurrentPage(1); }}
+                >
+                  <option value="">Todos Tipos</option>
+                  <option value="fixo">Fixo</option>
+                  <option value="terceiro">Terceiro</option>
                 </select>
              </div>
              
