@@ -11,10 +11,14 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { exportToExcel, exportToPDF } from '../utils/export';
+import { useLoadingStore } from '../stores/useLoadingStore';
+import { showToast, showConfirm } from '../utils/swal';
 
 export const Veiculos = () => {
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  
+  const { setGlobalLoading } = useLoadingStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,7 +37,7 @@ export const Veiculos = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsPageLoading(false);
     }
   };
 
@@ -43,10 +47,13 @@ export const Veiculos = () => {
 
   const onSubmit: SubmitHandler<VeiculoFormData> = async (data) => {
     try {
+      setGlobalLoading(true);
       if (editingId) {
         await veiculoService.update(editingId, data);
+        showToast('Veículo atualizado!');
       } else {
         await veiculoService.create(data);
+        showToast('Veículo cadastrado!');
       }
       setIsModalOpen(false);
       reset();
@@ -54,6 +61,9 @@ export const Veiculos = () => {
       loadVeiculos();
     } catch (err) {
       console.error(err);
+      showToast('Erro ao salvar veículo', 'error');
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
@@ -69,12 +79,18 @@ export const Veiculos = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja realmente excluir este veículo?')) {
+    const result = await showConfirm('Excluir Veículo', 'Deseja realmente excluir este veículo?');
+    if (result.isConfirmed) {
       try {
+        setGlobalLoading(true);
         await veiculoService.delete(id);
+        showToast('Veículo excluído');
         loadVeiculos();
       } catch (err) {
         console.error(err);
+        showToast('Erro ao excluir veículo', 'error');
+      } finally {
+        setGlobalLoading(false);
       }
     }
   };
@@ -172,7 +188,7 @@ export const Veiculos = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {isPageLoading ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Carregando...</td></tr>
               ) : paginatedVeiculos.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Nenhum veículo encontrado.</td></tr>

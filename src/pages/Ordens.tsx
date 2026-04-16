@@ -10,6 +10,9 @@ import { ordemService } from '../services/ordens.service';
 import { empresaService } from '../services/empresas.service';
 import { motoristaService } from '../services/motoristas.service';
 import { veiculoService } from '../services/veiculos.service';
+import { notificationService } from '../services/notifications.service';
+import { useLoadingStore } from '../stores/useLoadingStore';
+import { showToast, showConfirm } from '../utils/swal';
 import type { OrdemServico, Empresa, Motorista, Veiculo } from '../types';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -24,7 +27,7 @@ export const Ordens = () => {
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
   
-  const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +41,8 @@ export const Ordens = () => {
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [statusOrdemTarget, setStatusOrdemTarget] = useState<OrdemServico | null>(null);
   const [newStatus, setNewStatus] = useState<string>('');
+
+  const { setGlobalLoading } = useLoadingStore();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<OrdemServicoFormData>({
     resolver: zodResolver(ordemServicoSchema) as any,
@@ -58,7 +63,7 @@ export const Ordens = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsPageLoading(false);
     }
   };
 
@@ -68,25 +73,41 @@ export const Ordens = () => {
 
   const onSubmit: SubmitHandler<OrdemServicoFormData> = async (data) => {
     try {
+      setGlobalLoading(true);
       if (editingId) {
         const oldOrdem = ordens.find(o => o.id === editingId);
         await ordemService.update(editingId, data);
         
-        if (data.status === 'concluido' && oldOrdem?.status !== 'concluido') {
-           const { data: userData } = await supabase.auth.getUser();
-           if (userData?.user) {
-             await supabase.from('notificacoes').insert([{
-               user_id: userData.user.id,
-               titulo: 'Ordem Concluída',
-               mensagem: `A OS para ${data.destino} foi concluída. Confirme ou verifique se o recebimento foi realizado!`,
-               tipo: 'warning',
-               link: '/financeiro'
-             }]);
-           }
-           setOrdemToConfirm(editingId);
+        // Notificação de alteração de status
+        if (oldOrdem?.status !== data.status) {
+          const statusMap: Record<string, string> = {
+            'pendente': 'Pendente',
+            'em_andamento': 'Em Andamento',
+            'concluido': 'Concluída',
+            'cancelado': 'Cancelada'
+          };
+
+          await notificationService.create({
+            titulo: `OS ${statusMap[data.status as string]}`,
+            mensagem: `A OS para ${data.destino} foi alterada para o status: ${statusMap[data.status as string]}.`,
+            tipo: data.status === 'concluido' ? 'success' : data.status === 'cancelado' ? 'error' : 'info',
+            link: '/ordens'
+          });
+
+          if (data.status === 'concluido') {
+            setOrdemToConfirm(editingId);
+          }
         }
+        showToast('Ordem atualizada com sucesso!');
       } else {
         await ordemService.create(data);
+        await notificationService.create({
+          titulo: 'Nova Ordem Criada',
+          mensagem: `Uma nova OS para ${data.destino} foi criada com sucesso.`,
+          tipo: 'success',
+          link: '/ordens'
+        });
+        showToast('Nova ordem criada!');
       }
       setIsModalOpen(false);
       reset({
@@ -102,19 +123,31 @@ export const Ordens = () => {
       loadData();
     } catch (err) {
       console.error(err);
+      showToast('Erro ao salvar ordem', 'error');
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
   const handleConfirmPayment = async () => {
     if (ordemToConfirm) {
+      setGlobalLoading(true);
       await supabase.from('recebimentos').update({
         status: 'pago',
         forma_pagamento: confirmData.forma_pagamento,
         data_pagamento: confirmData.data_pagamento
       }).eq('ordem_id', ordemToConfirm);
       
+      await notificationService.create({
+        titulo: 'Pagamento Confirmado',
+        mensagem: `O recebimento da OS vinculada foi confirmado via ${confirmData.forma_pagamento.toUpperCase()}.`,
+        tipo: 'success',
+        link: '/financeiro'
+      });
+
       setOrdemToConfirm(null);
-      alert('Recebimento confirmado e registrado no Financeiro!');
+      setGlobalLoading(false);
+      showToast('Recebimento confirmado!');
     }
   };
 
@@ -142,37 +175,62 @@ export const Ordens = () => {
     if (!statusOrdemTarget) return;
 
     try {
+      setGlobalLoading(true);
       await ordemService.update(statusOrdemTarget.id, { status: newStatus as any });
 
-      if (newStatus === 'concluido' && statusOrdemTarget.status !== 'concluido') {
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user) {
-          await supabase.from('notificacoes').insert([{
-            user_id: userData.user.id,
-            titulo: 'Ordem Concluída',
-            mensagem: `A OS para ${statusOrdemTarget.destino} foi concluída pelo Quick-Action. Confirme o recebimento!`,
-            tipo: 'warning',
-            link: '/financeiro'
-          }]);
+      if (statusOrdemTarget.status !== newStatus) {
+        const statusMap: Record<string, string> = {
+          'pendente': 'Pendente',
+          'em_andamento': 'Em Andamento',
+          'concluido': 'Concluída',
+          'cancelado': 'Cancelada'
+        };
+
+        await notificationService.create({
+          titulo: `Status Atualizado (${statusMap[newStatus]})`,
+          mensagem: `A OS para ${statusOrdemTarget.destino} foi atualizada rapidamente para ${statusMap[newStatus]}.`,
+          tipo: newStatus === 'concluido' ? 'success' : newStatus === 'cancelado' ? 'error' : 'info',
+          link: '/ordens'
+        });
+
+        if (newStatus === 'concluido') {
+          setOrdemToConfirm(statusOrdemTarget.id);
         }
-        setOrdemToConfirm(statusOrdemTarget.id);
       }
       
+      showToast('Status atualizado!');
       setStatusModalOpen(false);
       setStatusOrdemTarget(null);
       loadData();
     } catch (error) {
       console.error(error);
+      showToast('Erro ao atualizar status', 'error');
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja realmente excluir esta ordem de serviço?')) {
+    const result = await showConfirm('Tem certeza?', 'Deseja realmente excluir esta ordem de serviço?');
+    if (result.isConfirmed) {
       try {
+        setGlobalLoading(true);
+        const ordemToDelete = ordens.find(o => o.id === id);
         await ordemService.delete(id);
+        
+        await notificationService.create({
+          titulo: 'Ordem de Serviço Excluída',
+          mensagem: `A OS para ${ordemToDelete?.destino || 'Desconhecido'} foi removida do sistema.`,
+          tipo: 'error'
+        });
+
+        showToast('Ordem excluída!');
         loadData();
       } catch (err) {
         console.error(err);
+        showToast('Erro ao excluir', 'error');
+      } finally {
+        setGlobalLoading(false);
       }
     }
   };
@@ -304,7 +362,7 @@ export const Ordens = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {isPageLoading ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center">Carregando...</td></tr>
               ) : paginatedOrdens.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center">Nenhuma ordem encontrada.</td></tr>

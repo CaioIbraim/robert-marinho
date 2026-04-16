@@ -4,6 +4,9 @@ import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, DollarSign, CheckCircle, Download, FileText, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { notificationService } from '../services/notifications.service';
+import { useLoadingStore } from '../stores/useLoadingStore';
+import { showToast, showConfirm } from '../utils/swal';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
@@ -24,11 +27,13 @@ type RecebimentoFormData = z.infer<typeof recebimentoSchema>;
 export const Financeiro = () => {
   const [recebimentos, setRecebimentos] = useState<any[]>([]);
   const [ordens, setOrdens] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentToForce, setPaymentToForce] = useState<any | null>(null);
+  
+  const { setGlobalLoading } = useLoadingStore();
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm<RecebimentoFormData>({
     resolver: zodResolver(recebimentoSchema) as any,
@@ -45,7 +50,7 @@ export const Financeiro = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsPageLoading(false);
     }
   };
 
@@ -64,6 +69,7 @@ export const Financeiro = () => {
 
   const executeSubmit = async (data: RecebimentoFormData) => {
     try {
+      setGlobalLoading(true);
       const payload = {
         ...data,
         data_pagamento: data.data_pagamento ? data.data_pagamento : null
@@ -71,9 +77,26 @@ export const Financeiro = () => {
 
       if (editingId) {
         await supabase.from('recebimentos').update(payload).eq('id', editingId);
+        
+        if (data.status === 'pago') {
+          await notificationService.create({
+            titulo: 'Lançamento atualizado: PAGO',
+            mensagem: `O recebimento de R$ ${data.valor} foi atualizado como PAGO.`,
+            tipo: 'success',
+            link: '/financeiro'
+          });
+        }
       } else {
         await supabase.from('recebimentos').insert([payload]);
+        
+        await notificationService.create({
+          titulo: 'Novo Lançamento Financeiro',
+          mensagem: `Um novo recebimento de R$ ${data.valor} foi registrado como ${data.status.toUpperCase()}.`,
+          tipo: data.status === 'pago' ? 'success' : 'info',
+          link: '/financeiro'
+        });
       }
+      showToast('Recebimento salvo com sucesso!');
       setIsModalOpen(false);
       reset({ valor: 0, data_pagamento: '', forma_pagamento: '', status: 'pendente', ordem_id: '' });
       setEditingId(null);
@@ -81,6 +104,9 @@ export const Financeiro = () => {
       loadData();
     } catch (err) {
       console.error(err);
+      showToast('Erro ao salvar recebimento', 'error');
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
@@ -97,8 +123,12 @@ export const Financeiro = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja excluir este recebimento?')) {
+    const result = await showConfirm('Excluir Recebimento', 'Deseja realmente excluir este lançamento?');
+    if (result.isConfirmed) {
+      setGlobalLoading(true);
       await supabase.from('recebimentos').delete().eq('id', id);
+      setGlobalLoading(false);
+      showToast('Lançamento excluído');
       loadData();
     }
   };
@@ -113,20 +143,38 @@ export const Financeiro = () => {
   };
 
   const executeMarcarPago = async (id: string) => {
+    setGlobalLoading(true);
+    const { data: currentRec } = await supabase.from('recebimentos').select('valor').eq('id', id).single();
+    
     await supabase.from('recebimentos').update({ status: 'pago', data_pagamento: new Date().toISOString() }).eq('id', id);
+    
+    await notificationService.create({
+      titulo: 'Recebimento Confirmado',
+      mensagem: `A baixa do recebimento no valor de R$ ${currentRec?.valor || ''} foi realizada com sucesso.`,
+      tipo: 'success',
+      link: '/financeiro'
+    });
+
+    setGlobalLoading(false);
+    showToast('Recebimento baixado!');
     setPaymentToForce(null);
     loadData();
   };
 
   const handleForcePaymentConfirmation = async (completeOS: boolean) => {
-     if (completeOS && paymentToForce.linkedOrdem) {
-        await supabase.from('ordens_servico').update({ status: 'concluido' }).eq('id', paymentToForce.linkedOrdem.id);
-     }
-     
-     if (paymentToForce.isFromSubmit) {
-        await executeSubmit(paymentToForce.data);
-     } else {
-        await executeMarcarPago(paymentToForce.lancamento.id);
+     try {
+       setGlobalLoading(true);
+       if (completeOS && paymentToForce.linkedOrdem) {
+          await supabase.from('ordens_servico').update({ status: 'concluido' }).eq('id', paymentToForce.linkedOrdem.id);
+       }
+       
+       if (paymentToForce.isFromSubmit) {
+          await executeSubmit(paymentToForce.data);
+       } else {
+          await executeMarcarPago(paymentToForce.lancamento.id);
+       }
+     } finally {
+       setGlobalLoading(false);
      }
   };
 
@@ -213,7 +261,7 @@ export const Financeiro = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {isPageLoading ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center">Carregando...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center">Nenhum recebimento.</td></tr>

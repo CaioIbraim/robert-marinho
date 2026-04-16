@@ -10,10 +10,14 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { exportToExcel, exportToPDF } from '../utils/export';
+import { useLoadingStore } from '../stores/useLoadingStore';
+import { showToast, showConfirm } from '../utils/swal';
 
 export const Empresas = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  
+  const { setGlobalLoading } = useLoadingStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,7 +35,7 @@ export const Empresas = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsPageLoading(false);
     }
   };
 
@@ -41,10 +45,13 @@ export const Empresas = () => {
 
   const onSubmit = async (data: EmpresaFormData) => {
     try {
+      setGlobalLoading(true);
       if (editingId) {
         await empresaService.update(editingId, data);
+        showToast('Empresa atualizada!');
       } else {
         await empresaService.create(data);
+        showToast('Empresa cadastrada!');
       }
       setIsModalOpen(false);
       reset();
@@ -52,6 +59,9 @@ export const Empresas = () => {
       loadEmpresas();
     } catch (err) {
       console.error(err);
+      showToast('Erro ao salvar empresa', 'error');
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
@@ -67,12 +77,18 @@ export const Empresas = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja realmente excluir esta empresa?')) {
+    const result = await showConfirm('Excluir Empresa', 'Deseja realmente excluir esta empresa?');
+    if (result.isConfirmed) {
       try {
+        setGlobalLoading(true);
         await empresaService.delete(id);
+        showToast('Empresa excluída');
         loadEmpresas();
       } catch (err) {
         console.error(err);
+        showToast('Erro ao excluir empresa', 'error');
+      } finally {
+        setGlobalLoading(false);
       }
     }
   };
@@ -156,7 +172,7 @@ export const Empresas = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {isPageLoading ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Carregando...</td></tr>
               ) : paginatedEmpresas.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Nenhuma empresa encontrada.</td></tr>

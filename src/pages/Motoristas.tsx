@@ -10,10 +10,14 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { exportToExcel, exportToPDF } from '../utils/export';
+import { useLoadingStore } from '../stores/useLoadingStore';
+import { showToast, showConfirm } from '../utils/swal';
 
 export const Motoristas = () => {
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  
+  const { setGlobalLoading } = useLoadingStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +36,7 @@ export const Motoristas = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsPageLoading(false);
     }
   };
 
@@ -42,10 +46,13 @@ export const Motoristas = () => {
 
   const onSubmit = async (data: MotoristaFormData) => {
     try {
+      setGlobalLoading(true);
       if (editingId) {
         await motoristaService.update(editingId, data);
+        showToast('Motorista atualizado!');
       } else {
         await motoristaService.create(data);
+        showToast('Motorista cadastrado!');
       }
       setIsModalOpen(false);
       reset();
@@ -53,6 +60,9 @@ export const Motoristas = () => {
       loadMotoristas();
     } catch (err) {
       console.error(err);
+      showToast('Erro ao salvar motorista', 'error');
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
@@ -68,12 +78,18 @@ export const Motoristas = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja realmente excluir este motorista?')) {
+    const result = await showConfirm('Excluir Motorista', 'Deseja realmente excluir este motorista?');
+    if (result.isConfirmed) {
       try {
+        setGlobalLoading(true);
         await motoristaService.delete(id);
+        showToast('Motorista excluído');
         loadMotoristas();
       } catch (err) {
         console.error(err);
+        showToast('Erro ao excluir motorista', 'error');
+      } finally {
+        setGlobalLoading(false);
       }
     }
   };
@@ -173,7 +189,7 @@ export const Motoristas = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {isPageLoading ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Carregando...</td></tr>
               ) : paginatedMotoristas.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center">Nenhum motorista encontrado.</td></tr>

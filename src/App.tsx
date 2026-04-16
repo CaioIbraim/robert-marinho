@@ -12,6 +12,7 @@ import { Profile } from './pages/Profile';
 import { Financeiro } from './pages/Financeiro';
 import { Notificacoes } from './pages/Notificacoes';
 import { MapaRota } from './pages/MapaRota';
+import { LoadingOverlay } from './components/ui/LoadingOverlay';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] text-text-muted">
@@ -49,6 +50,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
+      <LoadingOverlay />
     </BrowserRouter>
   );
 }
