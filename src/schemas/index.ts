@@ -13,7 +13,7 @@ export const motoristaSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   cpf: z.string().min(11, 'CPF inválido').max(14),
   telefone: z.string().min(10, 'Telefone inválido'),
-  email: z.string().email('Email inválido').optional(),
+  email: z.string().email('Email inválido').or(z.literal('')).optional(),
   cnh: z.string().min(5, 'CNH inválida'),
   categoria_cnh: z.string().optional(),
   validade_cnh: z.string().optional(),
