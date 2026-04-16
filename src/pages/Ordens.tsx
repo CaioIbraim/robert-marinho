@@ -19,8 +19,7 @@ import type { OrdemServico, Empresa, Motorista, Veiculo, Tarifario } from '../ty
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDateBR, formatDateTimeBR  } from '../utils/date';
 import { exportToExcel, exportToPDF, generatePaymentReceipt } from '../utils/export';
 
 export const Ordens = () => {
@@ -300,13 +299,13 @@ export const Ordens = () => {
 
   const handleExportExcel = () => {
     const data = filteredOrdens.map(o => ({
-      Data: format(new Date(o.created_at), 'dd/MM/yyyy HH:mm'),
+      Data: formatDateTimeBR(new Date(o.data_execucao)),
       Empresa: o.empresa?.razao_social || '',
       Passageiro: o.passageiro || '',
       Voucher: o.voucher || '',
       Itinerario: `${o.origem} -> ${o.destino}`,
-      Horario_Inicio: o.horario_inicio ? format(new Date(o.horario_inicio), 'dd/MM/yyyy HH:mm') : '',
-      Horario_Fim: o.horario_fim ? format(new Date(o.horario_fim), 'dd/MM/yyyy HH:mm') : '',
+      Horario_Inicio: o.horario_inicio ? formatDateTimeBR(new Date(o.horario_inicio)) : '',
+      Horario_Fim: o.horario_fim ? formatDateTimeBR(new Date(o.horario_fim)) : '',
       Motorista: o.motorista?.nome || '',
       Tipo_Motorista: o.motorista?.tipo_vinculo || '',
       Veiculo: o.veiculo?.placa || '',
@@ -322,11 +321,11 @@ export const Ordens = () => {
     const data = filteredOrdens
       .filter(o => o.status === 'concluido')
       .map(o => ({
-        data: format(new Date(o.created_at), 'dd/MM/yyyy'),
+        data: formatDateTimeBR(new Date(o.data_execucao)),
         passageiro: o.passageiro || '—',
         itinerario: `${o.origem} → ${o.destino}`,
-        horario_inicial: o.horario_inicio ? format(new Date(o.horario_inicio), 'dd/MM/yyyy HH:mm') : '—',
-        horario_final: o.horario_fim ? format(new Date(o.horario_fim), 'dd/MM/yyyy HH:mm') : '—',
+        horario_inicial: o.horario_inicio ? formatDateTimeBR(new Date(o.horario_inicio)) : '—',
+        horario_final: o.horario_fim ? formatDateTimeBR(new Date(o.horario_fim)) : '—',
         valor: `R$ ${Number(o.valor_faturamento).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
       }));
     const columns = [
@@ -458,7 +457,7 @@ export const Ordens = () => {
                 <tr key={ordem.id} className="hover:bg-border/20 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-xs text-text-muted">{format(new Date(ordem.created_at), 'dd MMM yyyy, HH:mm', { locale: ptBR })}</span>
+                      <span className="text-xs text-text-muted">{formatDateBR(ordem.data_execucao)}</span>
                       <span className="font-medium text-white">{ordem.empresa?.razao_social}</span>
                     </div>
                   </td>
@@ -476,7 +475,10 @@ export const Ordens = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 font-bold text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ordem.valor_faturamento)}
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    }).format(ordem.valor_faturamento)}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold ${getStatusColor(ordem.status)}`}>
