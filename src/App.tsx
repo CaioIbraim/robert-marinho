@@ -7,7 +7,7 @@ import { Motoristas } from './pages/Motoristas';
 import { Veiculos } from './pages/Veiculos';
 import { Ordens } from './pages/Ordens';
 import { DashboardLayout } from './layouts/DashboardLayout';
-import { Landing } from "./pages/Landing";
+import  Landing  from "./pages/Landing";
 import { Profile } from './pages/Profile';
 import { Financeiro } from './pages/Financeiro';
 import { Notificacoes } from './pages/Notificacoes';
