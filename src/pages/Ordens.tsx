@@ -457,8 +457,15 @@ export const Ordens = () => {
                 <tr key={ordem.id} className="hover:bg-border/20 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-xs text-text-muted">{formatDateBR(ordem.data_execucao)}</span>
+                      <span className="text-xs text-text-muted">Data do Serviço: {formatDateBR(ordem.data_execucao)}</span>
                       <span className="font-medium text-white">{ordem.empresa?.razao_social}</span>
+                      <span className='flex flex-col items-left  rounded-md text-[10px] uppercase font-bold text-blue-500 bg-blue-500/10'>
+
+                        <span className="text-xs text-text-muted mt-2 font-bold uppercase">check-in: {formatDateTimeBR(ordem.horario_inicio)}</span>
+                        <span className="text-xs text-text-muted mt-2 font-bold uppercase">check-out: {formatDateTimeBR(ordem.horario_fim) || '--:--'}</span>
+
+                      </span>
+
                     </div>
                   </td>
                   <td className="px-6 py-4">
