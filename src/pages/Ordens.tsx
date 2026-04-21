@@ -16,6 +16,11 @@ import { notificationService } from '../services/notifications.service';
 import { useLoadingStore } from '../stores/useLoadingStore';
 import { showToast, showConfirm } from '../utils/swal';
 import type { OrdemServico, Empresa, Motorista, Veiculo, Tarifario } from '../types';
+import { FormDatePicker } from '../components/ui/FormDatePicker';
+import DatePicker from 'react-datepicker';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import "react-datepicker/dist/react-datepicker.css";
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
@@ -48,7 +53,7 @@ export const Ordens = () => {
 
   const { setGlobalLoading } = useLoadingStore();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<OrdemServicoFormData>({
+  const { register, handleSubmit, reset, watch, setValue, control, formState: { errors } } = useForm<OrdemServicoFormData>({
     resolver: zodResolver(ordemServicoSchema) as any,
   });
 
@@ -545,7 +550,7 @@ export const Ordens = () => {
       {/* Modal Form */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface border border-border rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-surface border border-border rounded-xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <h2 className="text-xl font-bold text-white">
                 {editingId ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço'}
@@ -656,9 +661,9 @@ export const Ordens = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Input label="Data do Serviço" type="date" {...register('data_execucao')} error={errors.data_execucao?.message} />
-                  <Input label="Check-in" type="datetime-local" {...register('horario_inicio')} error={errors.horario_inicio?.message} />
-                  <Input label="Checkout" type="datetime-local" {...register('horario_fim')} error={errors.horario_fim?.message} />
+                  <FormDatePicker control={control} name="data_execucao" label="Data do Serviço" error={errors.data_execucao?.message} />
+                  <FormDatePicker control={control} name="horario_inicio" label="Check-in" showTimeSelect error={errors.horario_inicio?.message} />
+                  <FormDatePicker control={control} name="horario_fim" label="Checkout" showTimeSelect error={errors.horario_fim?.message} />
                 </div>
               </section>
 
@@ -727,11 +732,12 @@ export const Ordens = () => {
 
               <div className="flex flex-col gap-2">
                 <label className="text-sm text-text-muted">Data do Pagamento</label>
-                <input 
-                  type="date"
+                <DatePicker
+                  selected={confirmData.data_pagamento ? parseISO(confirmData.data_pagamento + 'T00:00:00') : null}
+                  onChange={(date: Date | null) => setConfirmData({...confirmData, data_pagamento: date ? format(date, 'yyyy-MM-dd') : ''})}
+                  dateFormat="dd/MM/yyyy"
+                  locale={ptBR}
                   className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
-                  value={confirmData.data_pagamento}
-                  onChange={(e) => setConfirmData({...confirmData, data_pagamento: e.target.value})}
                 />
               </div>
 

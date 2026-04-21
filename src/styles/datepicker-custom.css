@@ -49,3 +49,40 @@
 .custom-datepicker-wrapper .react-datepicker-wrapper {
   width: 100%;
 }
+
+/* Time Picker Dark Mode Overrides */
+.react-datepicker__time-container {
+  border-left: 1px solid #333 !important;
+}
+
+.react-datepicker__header--time {
+  background-color: #262626 !important;
+  color: #e5e5e5 !important;
+  border-top-right-radius: 12px !important;
+}
+
+.react-datepicker__time {
+  background-color: #1e1e1e !important;
+  color: white !important;
+}
+
+.react-datepicker__time-box {
+  border-bottom-right-radius: 12px !important;
+}
+
+.react-datepicker__time-list-item {
+  color: #e5e5e5 !important;
+  background-color: #1e1e1e !important;
+  transition: all 0.2s ease !important;
+}
+
+.react-datepicker__time-list-item:hover {
+  background-color: #333 !important;
+  color: white !important;
+}
+
+.react-datepicker__time-list-item--selected {
+  background-color: #ef4444 !important;
+  color: white !important;
+  font-weight: bold !important;
+}

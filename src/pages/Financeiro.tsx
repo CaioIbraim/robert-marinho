@@ -10,6 +10,7 @@ import { showToast, showConfirm } from '../utils/swal';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
+import { FormDatePicker } from '../components/ui/FormDatePicker';
 import { format } from 'date-fns';
 import { exportToExcel, exportToPDF } from '../utils/export';
 import { z } from 'zod';
@@ -35,7 +36,7 @@ export const Financeiro = () => {
   
   const { setGlobalLoading } = useLoadingStore();
   
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<RecebimentoFormData>({
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<RecebimentoFormData>({
     resolver: zodResolver(recebimentoSchema) as any,
   });
 
@@ -441,7 +442,12 @@ export const Financeiro = () => {
                   </select>
                 </div>
 
-                <Input label="Data Pagamento / Previsão" type="date" error={errors.data_pagamento?.message} {...register('data_pagamento')} />
+                <FormDatePicker 
+                  control={control} 
+                  name="data_pagamento" 
+                  label="Data Pagamento / Previsão" 
+                  error={errors.data_pagamento?.message} 
+                />
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-sm text-text-muted">Forma de Pgto</label>
