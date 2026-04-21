@@ -7,13 +7,14 @@ import { Motoristas } from './pages/Motoristas';
 import { Veiculos } from './pages/Veiculos';
 import { Ordens } from './pages/Ordens';
 import { DashboardLayout } from './layouts/DashboardLayout';
-import { Landing } from "./pages/Landing";
+import  Landing  from "./pages/Landing";
 import { Profile } from './pages/Profile';
 import { Financeiro } from './pages/Financeiro';
 import { Notificacoes } from './pages/Notificacoes';
 import { MapaRota } from './pages/MapaRota';
 import { Tarifarios } from './pages/Tarifarios';
 import { LoadingOverlay } from './components/ui/LoadingOverlay';
+import PortalCliente from "./pages/PortalCliente";
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] text-text-muted">
@@ -29,7 +30,7 @@ function App() {
           
         {/* Landing (página pública) */}
         <Route path="/" element={<Landing />} />
-
+        <Route path="/portal" element={<PortalCliente />} />   {/* ou /cliente, /app */}
         {/* Auth */}
         <Route path="/login" element={<Login />} />
 

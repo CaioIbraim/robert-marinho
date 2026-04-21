@@ -9,6 +9,7 @@ import type { Motorista } from '../types';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
+import { FormDatePicker } from '../components/ui/FormDatePicker';
 import { exportToExcel, exportToPDF } from '../utils/export';
 import { useLoadingStore } from '../stores/useLoadingStore';
 import { showToast, showConfirm } from '../utils/swal';
@@ -26,7 +27,7 @@ export const Motoristas = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<MotoristaFormData>({
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<MotoristaFormData>({
     resolver: zodResolver(motoristaSchema) as any,
   });
 
@@ -322,11 +323,11 @@ export const Motoristas = () => {
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
+                <FormDatePicker
+                  control={control}
+                  name="validade_cnh"
                   label="Validade da CNH"
-                  type="date"
                   error={errors.validade_cnh?.message}
-                  {...register('validade_cnh')}
                 />
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-text-muted">Tipo de Vínculo</label>

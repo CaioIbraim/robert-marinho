@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,21 +47,44 @@ export const Login = () => {
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-10">
-          <div className="w-60 h-60 rounded-2xl flex items-center justify-center">
-            <img
-              src="/logo2.png"
-              alt="Dashboard preview"
-              className="w-full max-w-md drop-shadow-2xl"
-            />
+
+  <div className="min-h-screen bg-zinc-950 text-zinc-200">
+
+
+
+       {/* HEADER */}
+      <header className="sticky top-0 z-50 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-5">
+          <Link to="/" className="flex items-center gap-3">
+            <img src="/logo.png" alt="Robert Marinho Logística" className="w-12 h-8" />
+            <div>
+              <span className="font-tight uppercase text-2xl tracking-tight">
+                <span className="text-red-500">Robert Marinho</span>
+              </span>
+              <p className="text-xs text-zinc-500 -mt-1">Soluções em Logística</p>
+            </div>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-8 text-sm">
+            <a href="/#sobre" className="hover:text-red-500 transition">Sobre nós</a>
+            <a href="/#frota" className="hover:text-red-500 transition">Nossa Frota</a>
+            <a href="/#servicos" className="hover:text-red-500 transition">Serviços</a>
+            <a href="/#depoimentos" className="hover:text-red-500 transition">Clientes</a>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Link to="/login" className="text-sm hover:text-red-500 transition">Acessar sistema</Link>
+            <a href="#orcamento" className="bg-red-600 hover:bg-red-700 px-6 py-2.5 rounded-xl font-medium transition">
+              Solicitar orçamento
+            </a>
           </div>
         </div>
+      </header>
 
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md">
         <div className="glass-panel p-8">
           <h2 className="text-2xl font-bold text-text mb-6">Acesse sua conta</h2>
-
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded-md text-sm">
@@ -109,5 +132,26 @@ export const Login = () => {
         </p>
       </div>
     </div>
+
+    {/* FOOTER */}
+      <footer className="bg-black py-12 border-t border-zinc-900">
+        <div className="max-w-7xl mx-auto px-6 text-center text-zinc-500 text-sm">
+          © {new Date().getFullYear()} Robert Marinho Logística • Todos os direitos reservados.<br />
+          Transporte Executivo • Logística Especializada • Rio de Janeiro
+        </div>
+      </footer>
+
+      {/* Botão WhatsApp Flutuante */}
+      <a
+        href="https://wa.me/5521994925465?text=Olá!%20Gostaria%20de%20uma%20cotação%20para%20transporte%20executivo%20ou%20logística%20especializada."
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 bg-green-500 hover:bg-green-600 w-16 h-16 rounded-full flex items-center justify-center shadow-2xl text-4xl z-50 transition hover:scale-110"
+      >
+        💬
+      </a>
+
+  </div>
+
   );
 };
