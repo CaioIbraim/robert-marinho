@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { empresaService } from '../services/empresas.service';
 import { motoristaService } from '../services/motoristas.service';
 import { veiculoService } from '../services/veiculos.service';
-import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import '../styles/datepicker-custom.css';
@@ -219,7 +219,7 @@ export const Dashboard = () => {
               </label>
 
               <DatePicker
-                selected={filters.startDate ? new Date(filters.startDate) : null}
+                selected={filters.startDate ? parseISO(filters.startDate + 'T00:00:00') : null}
                 onChange={handleDateChange('startDate')}
                 dateFormat="dd/MM/yyyy"
                 className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-sm text-white input-focus"
@@ -233,7 +233,7 @@ export const Dashboard = () => {
               </label>
 
               <DatePicker
-                selected={filters.endDate ? new Date(filters.endDate) : null}
+                selected={filters.endDate ? parseISO(filters.endDate + 'T00:00:00') : null}
                 onChange={handleDateChange('endDate')}
                 dateFormat="dd/MM/yyyy"
                 className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-sm text-white input-focus"
