@@ -81,12 +81,23 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           {/* Logo */}
           <div className="p-6 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white">
-                <FaTruck size={16} />
+
+
+
+
+              <div className="h-8 md:h-10 rounded-lg flex items-center justify-center text-white">
+                <img src="/logo.png" alt="Robert Marinho Logística" className="h-8 md:h-10" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-white">
-                ROBERT<span className="text-primary">MARINHO</span>
-              </span>
+             
+
+
+               
+            
+            
+          
+
+
+
             </div>
 
             <button onClick={onClose} className="lg:hidden text-text-muted hover:text-white">

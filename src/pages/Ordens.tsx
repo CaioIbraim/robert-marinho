@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, RefreshCw } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, RefreshCw, Eye } from 'lucide-react';
 import { FaUsers, FaBuilding } from 'react-icons/fa';
 import { ordemServicoSchema } from '../schemas';
 import { supabase } from '../lib/supabaseClient';
@@ -21,8 +21,13 @@ import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { formatDateBR, formatDateTimeBR  } from '../utils/date';
 import { exportToExcel, exportToPDF, generatePaymentReceipt } from '../utils/export';
+import { useNavigate } from 'react-router-dom';
+
+
+
 
 export const Ordens = () => {
+  const navigate = useNavigate();
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
@@ -494,6 +499,13 @@ export const Ordens = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <button
+  onClick={() => navigate(`/ordens/${ordem.id}`)}
+  className="p-1.5 text-text-muted hover:text-cyan-400 transition-colors"
+  title="Ver Detalhes"
+>
+  <Eye size={18} />
+</button>
                       <button onClick={() => handleEdit(ordem)} className="p-1.5 text-text-muted hover:text-primary transition-colors tooltip-trigger" title="Editar">
                         <Pencil size={18} />
                       </button>

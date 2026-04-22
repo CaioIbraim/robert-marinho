@@ -1,43 +1,7 @@
-import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+
 import QRCode from 'qrcode';
 
-// ==========================
-// EXCEL
-// ==========================
-export const exportToExcel = (data: any[], filename: string) => {
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Dados');
-  XLSX.writeFile(workbook, `${filename}.xlsx`);
-};
-
-// ==========================
-// PDF LISTAGEM
-// ==========================
-export const exportToPDF = (
-  data: any[],
-  columns: { header: string; dataKey: string }[],
-  filename: string,
-  title: string
-) => {
-  const doc = new jsPDF();
-
-  doc.setFontSize(18);
-  doc.text(title, 14, 22);
-
-  autoTable(doc, {
-    startY: 30,
-    head: [columns.map(c => c.header)],
-    body: data.map(item => columns.map(c => item[c.dataKey])),
-    theme: 'grid',
-    styles: { fontSize: 10, cellPadding: 3 },
-    headStyles: { fillColor: [41, 128, 185], textColor: 255 }
-  });
-
-  doc.save(`${filename}.pdf`);
-};
 // ==========================
 // RECIBO COMPLETO COM PIX
 // ==========================
