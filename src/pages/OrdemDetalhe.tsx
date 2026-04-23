@@ -71,7 +71,7 @@ export const OrdemDetalhe = () => {
 
           <div>
             <h1 className="text-2xl font-bold text-white">
-              Detalhes da Ordem
+              Ordem de Serviço #{ordem.numero_os || '---'}
             </h1>
             <p className="text-text-muted">
               {ordem.origem} → {ordem.destino}

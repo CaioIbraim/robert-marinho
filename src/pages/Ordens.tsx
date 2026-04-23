@@ -63,7 +63,6 @@ export const Ordens = () => {
   });
 
   const watchedMotoristaId = watch('motorista_id');
-  const watchedTarifarioId = watch('tarifario_id');
   const selectedMotorista = motoristas.find(m => m.id === watchedMotoristaId);
   const isTerceiro = selectedMotorista?.tipo_vinculo === 'terceiro';
 
@@ -92,16 +91,6 @@ export const Ordens = () => {
     loadData();
   }, []);
 
-  // Auto-fill ao selecionar tarifário
-  useEffect(() => {
-    if (!watchedTarifarioId) return;
-    const tar = tarifarios.find(t => t.id === watchedTarifarioId);
-    if (tar) {
-      setValue('origem', tar.origem);
-      setValue('destino', tar.destino);
-      setValue('valor_faturamento', tar.valor_venda);
-    }
-  }, [watchedTarifarioId, tarifarios, setValue]);
 
   const onSubmit: SubmitHandler<OrdemServicoFormData> = async (data) => {
     try {
@@ -296,7 +285,8 @@ export const Ordens = () => {
       ((o.origem?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (o.destino?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (o.passageiro?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (o.empresa?.razao_social?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
+      (o.empresa?.razao_social?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (o.id?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
     const matchStatus = statusFilter === '' || o.status === statusFilter;
     const matchEmpresa = empresaFilter === '' || o.empresa_id === empresaFilter;
     const matchTipo = tipoMotoristaFilter === '' || 
@@ -309,6 +299,7 @@ export const Ordens = () => {
 
   const handleExportExcel = () => {
     const data = filteredOrdens.map(o => ({
+      'Nº OS': o.id || '---',
       Data: formatDateTimeBR(new Date(o.data_execucao)),
       Empresa: o.empresa?.razao_social || '',
       Passageiro: o.passageiro || '',
@@ -331,6 +322,7 @@ export const Ordens = () => {
     const data = filteredOrdens
       .filter(o => o.status === 'concluido')
       .map(o => ({
+        os: o.id || '—',
         data: formatDateTimeBR(new Date(o.data_execucao)),
         passageiro: o.passageiro || '—',
         itinerario: `${o.origem} → ${o.destino}`,
@@ -339,6 +331,7 @@ export const Ordens = () => {
         valor: `R$ ${Number(o.valor_faturamento).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
       }));
     const columns = [
+      { header: 'OS', dataKey: 'os' },
       { header: 'Data', dataKey: 'data' },
       { header: 'Passageiro', dataKey: 'passageiro' },
       { header: 'Itinerário', dataKey: 'itinerario' },
@@ -467,7 +460,7 @@ export const Ordens = () => {
                 <tr key={ordem.id} className="hover:bg-border/20 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-xs text-text-muted">Data do Serviço: {formatDateBR(ordem.data_execucao)}</span>
+                      <span className="text-xs text-text-muted">OS #{ordem.numero_os || '---'} | {formatDateBR(ordem.data_execucao)}</span>
                       <span className="font-medium text-white">{ordem.empresa?.razao_social}</span>
                       <span className='flex flex-col items-left  rounded-md text-[10px] uppercase font-bold text-blue-500 bg-blue-500/10'>
 
@@ -629,7 +622,22 @@ export const Ordens = () => {
 
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-text-muted">Trajeto (Tarifário)</label>
-                  <select {...register('tarifario_id')} className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white">
+                  <select 
+                    {...register('tarifario_id', {
+                      onChange: (e) => {
+                        const tarId = e.target.value;
+                        if (tarId) {
+                          const tar = tarifarios.find(t => t.id === tarId);
+                          if (tar) {
+                            setValue('origem', tar.origem);
+                            setValue('destino', tar.destino);
+                            setValue('valor_faturamento', tar.valor_venda);
+                          }
+                        }
+                      }
+                    })} 
+                    className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
+                  >
                     <option value="">Preenchimento Manual...</option>
                     {tarifarios.map(t => (
                       <option key={t.id} value={t.id}>
