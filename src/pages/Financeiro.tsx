@@ -11,7 +11,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { FormDatePicker } from '../components/ui/FormDatePicker';
-import { format } from 'date-fns';
+import { formatDateBR } from '../utils/date';
+import { StatusBadge } from '../components/ui/StatusBadge';
 import { exportToExcel, exportToPDF } from '../utils/export';
 import { z } from 'zod';
 
@@ -363,7 +364,7 @@ export const Financeiro = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-text-muted">
-                    {r.data_pagamento ? format(new Date(r.data_pagamento), 'dd/MM/yyyy') : '-'}
+                    {formatDateBR(r.data_pagamento) || '-'}
                   </td>
                   <td className="px-6 py-4 text-text-muted capitalize">
                     {r.forma_pagamento || '-'}
@@ -378,13 +379,7 @@ export const Financeiro = () => {
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.valor - (r.ordem?.valor_custo_motorista || 0))}
                   </td>
                   <td className="px-6 py-4">
-                     <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
-                        r.status === 'pago' ? 'bg-green-500/20 text-green-500' :
-                        r.status === 'atrasado' ? 'bg-red-500/20 text-red-500' :
-                        'bg-yellow-500/20 text-yellow-500'
-                     }`}>
-                      {r.status}
-                    </span>
+                    <StatusBadge status={r.status} />
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">

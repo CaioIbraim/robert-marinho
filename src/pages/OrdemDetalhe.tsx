@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { formatDateBR, formatDateTimeBR } from '../utils/date';
 import type { OrdemServico } from '../types';
 import { ArrowLeft, FileText } from 'lucide-react';
+import { StatusBadge } from '../components/ui/StatusBadge';
 import { generatePaymentReceipt } from '../utils/exportRecibo';
 
 export const OrdemDetalhe = () => {
@@ -30,30 +31,10 @@ export const OrdemDetalhe = () => {
     load();
   }, [id]);
 
-  // 🎨 Cor do status
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pendente': return 'text-yellow-500 bg-yellow-500/10';
-      case 'em_andamento': return 'text-blue-500 bg-blue-500/10';
-      case 'concluido': return 'text-green-500 bg-green-500/10';
-      case 'cancelado': return 'text-red-500 bg-red-500/10';
-      default: return 'text-text-muted bg-border/50';
-    }
-  };
-
 
   const handleGenerateReceipt = async () => {
-  if (!ordem) return;
-
-  await generatePaymentReceipt(ordem, ordem.empresa);
-};
-
-  // 🏷️ Label amigável
-  const statusLabel: Record<string, string> = {
-    pendente: 'Pendente',
-    em_andamento: 'Em Andamento',
-    concluido: 'Concluída',
-    cancelado: 'Cancelada',
+    if (!ordem) return;
+    await generatePaymentReceipt(ordem, ordem.empresa);
   };
 
   if (loading) return <div className="p-6">Carregando...</div>;
@@ -80,11 +61,7 @@ export const OrdemDetalhe = () => {
         </div>
 
         {/* STATUS NO HEADER */}
-        <span
-          className={`px-3 py-1 rounded-md text-xs font-bold uppercase ${getStatusColor(ordem.status)}`}
-        >
-          {statusLabel[ordem.status] || ordem.status}
-        </span>
+        <StatusBadge status={ordem.status} className="px-3 py-1 text-xs" />
       </div>
 
       {/* GRID */}
@@ -130,11 +107,7 @@ export const OrdemDetalhe = () => {
           {/* STATUS (EXTRA) */}
           <Card>
             <h2 className="text-lg font-bold text-white mb-4">Status</h2>
-            <span
-              className={`px-3 py-1 rounded-md text-xs font-bold uppercase ${getStatusColor(ordem.status)}`}
-            >
-              {statusLabel[ordem.status] || ordem.status}
-            </span>
+            <StatusBadge status={ordem.status} className="px-3 py-1 text-xs" />
           </Card>
 
           {/* EMPRESA */}

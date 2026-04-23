@@ -24,7 +24,8 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
-import { formatDateBR, formatDateTimeBR  } from '../utils/date';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { formatDateBR, formatDateTimeBR } from '../utils/date';
 import { exportToExcel, exportToPDF, generatePaymentReceipt } from '../utils/export';
 import { useNavigate } from 'react-router-dom';
 
@@ -38,7 +39,7 @@ export const Ordens = () => {
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
   const [tarifarios, setTarifarios] = useState<Tarifario[]>([]);
-  
+
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export const Ordens = () => {
   const [tipoMotoristaFilter, setTipoMotoristaFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  
+
   const [ordemToConfirm, setOrdemToConfirm] = useState<string | null>(null);
   const [confirmData, setConfirmData] = useState({ forma_pagamento: 'pix', data_pagamento: new Date().toISOString().split('T')[0] });
 
@@ -98,7 +99,7 @@ export const Ordens = () => {
       if (editingId) {
         const oldOrdem = ordens.find(o => o.id === editingId);
         await ordemService.update(editingId, data);
-        
+
         // Notificação de alteração de status
         if (oldOrdem?.status !== data.status) {
           const statusMap: Record<string, string> = {
@@ -165,7 +166,7 @@ export const Ordens = () => {
         forma_pagamento: confirmData.forma_pagamento,
         data_pagamento: confirmData.data_pagamento
       }).eq('ordem_id', ordemToConfirm);
-      
+
       await notificationService.create({
         titulo: 'Pagamento Confirmado',
         mensagem: `O recebimento da OS vinculada foi confirmado via ${confirmData.forma_pagamento.toUpperCase()}.`,
@@ -232,7 +233,7 @@ export const Ordens = () => {
           setOrdemToConfirm(statusOrdemTarget.id);
         }
       }
-      
+
       showToast('Status atualizado!');
       setStatusModalOpen(false);
       setStatusOrdemTarget(null);
@@ -252,7 +253,7 @@ export const Ordens = () => {
         setGlobalLoading(true);
         const ordemToDelete = ordens.find(o => o.id === id);
         await ordemService.delete(id);
-        
+
         await notificationService.create({
           titulo: 'Ordem de Serviço Excluída',
           mensagem: `A OS para ${ordemToDelete?.destino || 'Desconhecido'} foi removida do sistema.`,
@@ -270,26 +271,17 @@ export const Ordens = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pendente': return 'text-yellow-500 bg-yellow-500/10';
-      case 'em_transito': return 'text-blue-500 bg-blue-500/10';
-      case 'concluida': return 'text-green-500 bg-green-500/10';
-      case 'cancelada': return 'text-red-500 bg-red-500/10';
-      default: return 'text-text-muted bg-border/50';
-    }
-  };
 
   const filteredOrdens = ordens.filter(o => {
     const matchSearch =
       ((o.origem?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (o.destino?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (o.passageiro?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (o.empresa?.razao_social?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (o.id?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
+        (o.destino?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (o.passageiro?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (o.empresa?.razao_social?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (o.id?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
     const matchStatus = statusFilter === '' || o.status === statusFilter;
     const matchEmpresa = empresaFilter === '' || o.empresa_id === empresaFilter;
-    const matchTipo = tipoMotoristaFilter === '' || 
+    const matchTipo = tipoMotoristaFilter === '' ||
       (tipoMotoristaFilter === 'terceiro' ? o.motorista?.tipo_vinculo === 'terceiro' : o.motorista?.tipo_vinculo !== 'terceiro');
     return matchSearch && matchStatus && matchEmpresa && matchTipo;
   });
@@ -300,13 +292,13 @@ export const Ordens = () => {
   const handleExportExcel = () => {
     const data = filteredOrdens.map(o => ({
       'Nº OS': o.id || '---',
-      Data: formatDateTimeBR(new Date(o.data_execucao)),
+      Data: formatDateBR(o.data_execucao),
       Empresa: o.empresa?.razao_social || '',
       Passageiro: o.passageiro || '',
       Voucher: o.voucher || '',
       Itinerario: `${o.origem} -> ${o.destino}`,
-      Horario_Inicio: o.horario_inicio ? formatDateTimeBR(new Date(o.horario_inicio)) : '',
-      Horario_Fim: o.horario_fim ? formatDateTimeBR(new Date(o.horario_fim)) : '',
+      Horario_Inicio: formatDateTimeBR(o.horario_inicio),
+      Horario_Fim: formatDateTimeBR(o.horario_fim),
       Motorista: o.motorista?.nome || '',
       Tipo_Motorista: o.motorista?.tipo_vinculo || '',
       Veiculo: o.veiculo?.placa || '',
@@ -323,11 +315,11 @@ export const Ordens = () => {
       .filter(o => o.status === 'concluido')
       .map(o => ({
         os: o.id || '—',
-        data: formatDateTimeBR(new Date(o.data_execucao)),
+        data: formatDateBR(o.data_execucao),
         passageiro: o.passageiro || '—',
         itinerario: `${o.origem} → ${o.destino}`,
-        horario_inicial: o.horario_inicio ? formatDateTimeBR(new Date(o.horario_inicio)) : '—',
-        horario_final: o.horario_fim ? formatDateTimeBR(new Date(o.horario_fim)) : '—',
+        horario_inicial: formatDateTimeBR(o.horario_inicio),
+        horario_final: formatDateTimeBR(o.horario_fim),
         valor: `R$ ${Number(o.valor_faturamento).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
       }));
     const columns = [
@@ -350,8 +342,8 @@ export const Ordens = () => {
           <h1 className="text-2xl font-bold text-white">Ordens de Serviço</h1>
           <p className="text-text-muted">Gerencie os transportes e fretes.</p>
         </div>
-        <Button onClick={() => { 
-          setEditingId(null); 
+        <Button onClick={() => {
+          setEditingId(null);
           reset({
             empresa_id: '',
             motorista_id: '',
@@ -367,8 +359,8 @@ export const Ordens = () => {
             valor_faturamento: 0,
             valor_custo_motorista: 0,
             status: 'pendente',
-          }); 
-          setIsModalOpen(true); 
+          });
+          setIsModalOpen(true);
         }} className="flex gap-2">
           <Plus size={20} /> Nova Ordem
         </Button>
@@ -387,55 +379,55 @@ export const Ordens = () => {
             />
           </div>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-             <div className="relative w-full sm:w-44">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
-                <select 
-                  className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
-                  value={statusFilter}
-                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                >
-                  <option value="">Todos Status</option>
-                  <option value="pendente">Pendente</option>
-                  <option value="em_andamento">Em Andamento</option>
-                  <option value="concluido">Concluída</option>
-                  <option value="cancelado">Cancelada</option>
-                </select>
-             </div>
+            <div className="relative w-full sm:w-44">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+              <select
+                className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+              >
+                <option value="">Todos Status</option>
+                <option value="pendente">Pendente</option>
+                <option value="em_andamento">Em Andamento</option>
+                <option value="concluido">Concluída</option>
+                <option value="cancelado">Cancelada</option>
+              </select>
+            </div>
 
-             <div className="relative w-full sm:w-44">
-                <FaUsers className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
-                <select 
-                  className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
-                  value={tipoMotoristaFilter}
-                  onChange={(e) => { setTipoMotoristaFilter(e.target.value); setCurrentPage(1); }}
-                >
-                  <option value="">Todos Motoristas</option>
-                  <option value="fixo">Frota Própria (Fixo)</option>
-                  <option value="terceiro">Terceiros (Freelance)</option>
-                </select>
-             </div>
+            <div className="relative w-full sm:w-44">
+              <FaUsers className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
+              <select
+                className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
+                value={tipoMotoristaFilter}
+                onChange={(e) => { setTipoMotoristaFilter(e.target.value); setCurrentPage(1); }}
+              >
+                <option value="">Todos Motoristas</option>
+                <option value="fixo">Frota Própria (Fixo)</option>
+                <option value="terceiro">Terceiros (Freelance)</option>
+              </select>
+            </div>
 
-             <div className="relative w-full sm:w-44">
-                <FaBuilding className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
-                <select 
-                  className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
-                  value={empresaFilter}
-                  onChange={(e) => { setEmpresaFilter(e.target.value); setCurrentPage(1); }}
-                >
-                  <option value="">Todas Empresas</option>
-                  {empresas.map(e => <option key={e.id} value={e.id}>{e.razao_social}</option>)}
-                </select>
-             </div>
-             
-             <div className="flex gap-2">
-               <button onClick={handleExportExcel} className="p-2 bg-surface border border-border rounded-md hover:border-green-500 hover:text-green-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para Excel">
-                  <Download size={18} />
-               </button>
-               <button onClick={handleExportFaturamento} className="p-2 bg-surface border border-border rounded-md hover:border-blue-500 hover:text-blue-500 text-text-muted transition-colors tooltip-trigger flex items-center gap-2 text-xs font-bold" title="Exportar para Faturamento">
-                  <FileText size={18} />
-                  <span className="hidden lg:inline">FATURAMENTO</span>
-               </button>
-             </div>
+            <div className="relative w-full sm:w-44">
+              <FaBuilding className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={14} />
+              <select
+                className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm input-focus text-white appearance-none"
+                value={empresaFilter}
+                onChange={(e) => { setEmpresaFilter(e.target.value); setCurrentPage(1); }}
+              >
+                <option value="">Todas Empresas</option>
+                {empresas.map(e => <option key={e.id} value={e.id}>{e.razao_social}</option>)}
+              </select>
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={handleExportExcel} className="p-2 bg-surface border border-border rounded-md hover:border-green-500 hover:text-green-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para Excel">
+                <Download size={18} />
+              </button>
+              <button onClick={handleExportFaturamento} className="p-2 bg-surface border border-border rounded-md hover:border-blue-500 hover:text-blue-500 text-text-muted transition-colors tooltip-trigger flex items-center gap-2 text-xs font-bold" title="Exportar para Faturamento">
+                <FileText size={18} />
+                <span className="hidden lg:inline">FATURAMENTO</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -460,7 +452,7 @@ export const Ordens = () => {
                 <tr key={ordem.id} className="hover:bg-border/20 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-xs text-text-muted">OS #{ordem.numero_os || '---'} | {formatDateBR(ordem.data_execucao)}</span>
+                      <span className="text-xs text-text-muted">OS #{ordem?.numero_os || ordem?.id?.slice(0, 8)} | {formatDateBR(ordem.data_execucao)}</span>
                       <span className="font-medium text-white">{ordem.empresa?.razao_social}</span>
                       <span className='flex flex-col items-left  rounded-md text-[10px] uppercase font-bold text-blue-500 bg-blue-500/10'>
 
@@ -491,19 +483,17 @@ export const Ordens = () => {
                     }).format(ordem.valor_faturamento)}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold ${getStatusColor(ordem.status)}`}>
-                      {ordem.status.replace('_', ' ')}
-                    </span>
+                    <StatusBadge status={ordem.status} />
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-  onClick={() => navigate(`/ordens/${ordem.id}`)}
-  className="p-1.5 text-text-muted hover:text-cyan-400 transition-colors"
-  title="Ver Detalhes"
->
-  <Eye size={18} />
-</button>
+                        onClick={() => navigate(`/ordens/${ordem.id}`)}
+                        className="p-1.5 text-text-muted hover:text-cyan-400 transition-colors"
+                        title="Ver Detalhes"
+                      >
+                        <Eye size={18} />
+                      </button>
                       <button onClick={() => handleEdit(ordem)} className="p-1.5 text-text-muted hover:text-primary transition-colors tooltip-trigger" title="Editar">
                         <Pencil size={18} />
                       </button>
@@ -525,29 +515,29 @@ export const Ordens = () => {
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="p-4 border-t border-border flex items-center justify-between">
-             <span className="text-sm text-text-muted">
-               Página {currentPage} de {totalPages} (Total: {filteredOrdens.length})
-             </span>
-             <div className="flex gap-2">
-               <button 
-                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                 disabled={currentPage === 1}
-                 className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
-               >
-                 <ChevronLeft size={18} />
-               </button>
-               <button 
-                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                 disabled={currentPage === totalPages}
-                 className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
-               >
-                 <ChevronRight size={18} />
-               </button>
-             </div>
+            <span className="text-sm text-text-muted">
+              Página {currentPage} de {totalPages} (Total: {filteredOrdens.length})
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-md border border-border text-text disabled:opacity-50 hover:bg-border/50 transition-colors"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
         )}
       </Card>
@@ -560,14 +550,14 @@ export const Ordens = () => {
               <h2 className="text-xl font-bold text-white">
                 {editingId ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço'}
               </h2>
-              <button 
+              <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-text-muted hover:text-white transition-colors"
               >
-               close
+                close
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit(onSubmit)} className="p-6 overflow-y-auto max-h-[80vh] space-y-8">
               {/* SEÇÃO 1: LOGÍSTICA (EMPRESA, MOTORISTA, VEÍCULO) */}
               <section className="space-y-4">
@@ -577,7 +567,7 @@ export const Ordens = () => {
                   </div>
                   <h3 className="text-sm font-bold text-white uppercase tracking-wider">Logística Operacional</h3>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-text-muted">Empresa Cliente</label>
@@ -622,7 +612,7 @@ export const Ordens = () => {
 
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-text-muted">Trajeto (Tarifário)</label>
-                  <select 
+                  <select
                     {...register('tarifario_id', {
                       onChange: (e) => {
                         const tarId = e.target.value;
@@ -635,7 +625,7 @@ export const Ordens = () => {
                           }
                         }
                       }
-                    })} 
+                    })}
                     className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
                   >
                     <option value="">Preenchimento Manual...</option>
@@ -665,8 +655,8 @@ export const Ordens = () => {
                     <RefreshCw size={18} />
                     <h3 className="text-sm font-bold text-white uppercase tracking-wider">Cronograma de Execução</h3>
                   </div>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => {
                       const now = new Date();
                       const today = now.toISOString().split('T')[0];
@@ -734,14 +724,14 @@ export const Ordens = () => {
           <div className="bg-surface border border-border rounded-xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in">
             <h3 className="text-lg font-bold text-white mb-2">Ordem Concluída!</h3>
             <p className="text-sm text-text-muted mb-4">Deseja registrar o recebimento desse frete agora mesmo?</p>
-            
+
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <label className="text-sm text-text-muted">Forma de Pagamento</label>
-                <select 
+                <select
                   className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
                   value={confirmData.forma_pagamento}
-                  onChange={(e) => setConfirmData({...confirmData, forma_pagamento: e.target.value})}
+                  onChange={(e) => setConfirmData({ ...confirmData, forma_pagamento: e.target.value })}
                 >
                   <option value="pix">PIX</option>
                   <option value="boleto">Boleto</option>
@@ -754,7 +744,7 @@ export const Ordens = () => {
                 <label className="text-sm text-text-muted">Data do Pagamento</label>
                 <DatePicker
                   selected={confirmData.data_pagamento ? parseISO(confirmData.data_pagamento + 'T00:00:00') : null}
-                  onChange={(date: Date | null) => setConfirmData({...confirmData, data_pagamento: date ? format(date, 'yyyy-MM-dd') : ''})}
+                  onChange={(date: Date | null) => setConfirmData({ ...confirmData, data_pagamento: date ? format(date, 'yyyy-MM-dd') : '' })}
                   dateFormat="dd/MM/yyyy"
                   locale={ptBR}
                   className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
@@ -773,31 +763,31 @@ export const Ordens = () => {
       {/* Modal Quick Status Change */}
       {statusModalOpen && statusOrdemTarget && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-           <div className="bg-surface border border-border rounded-xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in">
-              <h3 className="text-lg font-bold text-white mb-2">Alterar Status</h3>
-              <p className="text-sm text-text-muted mb-4">
-                Ordem: {statusOrdemTarget.origem} → {statusOrdemTarget.destino}
-              </p>
-              
-              <div className="flex flex-col gap-2 mb-6">
-                <label className="text-sm text-text-muted">Novo Status</label>
-                <select 
-                  className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                >
-                  <option value="pendente">Pendente</option>
-                  <option value="em_andamento">Em Andamento</option>
-                  <option value="concluido">Concluída</option>
-                  <option value="cancelado">Cancelada</option>
-                </select>
-              </div>
+          <div className="bg-surface border border-border rounded-xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in">
+            <h3 className="text-lg font-bold text-white mb-2">Alterar Status</h3>
+            <p className="text-sm text-text-muted mb-4">
+              Ordem: {statusOrdemTarget.origem} → {statusOrdemTarget.destino}
+            </p>
 
-              <div className="flex gap-3 justify-end">
-                <Button type="button" variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancelar</Button>
-                <Button type="button" onClick={handleQuickStatusChange} className="bg-primary hover:opacity-90">Salvar Status</Button>
-              </div>
-           </div>
+            <div className="flex flex-col gap-2 mb-6">
+              <label className="text-sm text-text-muted">Novo Status</label>
+              <select
+                className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
+                value={newStatus}
+                onChange={(e) => setNewStatus(e.target.value)}
+              >
+                <option value="pendente">Pendente</option>
+                <option value="em_andamento">Em Andamento</option>
+                <option value="concluido">Concluída</option>
+                <option value="cancelado">Cancelada</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button type="button" variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancelar</Button>
+              <Button type="button" onClick={handleQuickStatusChange} className="bg-primary hover:opacity-90">Salvar Status</Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
