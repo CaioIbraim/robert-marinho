@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { Truck, Users, DollarSign, Clock, Shield, BarChart3, Award, CheckCircle } from "lucide-react";
+import { Truck, Users, DollarSign, Clock, Shield, Award, CheckCircle } from "lucide-react";
 
 export default function Landing() {
   const [formData, setFormData] = useState({
