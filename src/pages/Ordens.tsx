@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, RefreshCw, Eye } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, RefreshCw, Eye, Clock } from 'lucide-react';
 import { FaUsers, FaBuilding } from 'react-icons/fa';
 import { ordemServicoSchema } from '../schemas';
 import { supabase } from '../lib/supabaseClient';
@@ -18,7 +18,7 @@ import { showToast, showConfirm } from '../utils/swal';
 import type { OrdemServico, Empresa, Motorista, Veiculo, Tarifario } from '../types';
 import { FormDatePicker } from '../components/ui/FormDatePicker';
 import DatePicker from 'react-datepicker';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import "react-datepicker/dist/react-datepicker.css";
 import { Button } from '../components/ui/Button';
@@ -451,16 +451,61 @@ export const Ordens = () => {
               ) : paginatedOrdens.map((ordem) => (
                 <tr key={ordem.id} className="hover:bg-border/20 transition-colors group">
                   <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-text-muted">OS #{ordem?.numero_os || ordem?.id?.slice(0, 8)} | {formatDateBR(ordem.data_execucao)}</span>
-                      <span className="font-medium text-white">{ordem.empresa?.razao_social}</span>
-                      <span className='flex flex-col items-left  rounded-md text-[10px] uppercase font-bold text-blue-500 bg-blue-500/10'>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex flex-col items-center justify-center border border-primary/20">
+                          {(() => {
+                            const d = ordem.data_execucao;
+                            const dateObj = d ? (d.length === 10 ? parseISO(d + 'T00:00:00') : parseISO(d)) : null;
+                            const isDateValid = dateObj && isValid(dateObj);
 
-                        <span className="text-xs text-text-muted mt-2 font-bold uppercase">check-in: {formatDateTimeBR(ordem.horario_inicio)}</span>
-                        <span className="text-xs text-text-muted mt-2 font-bold uppercase">check-out: {formatDateTimeBR(ordem.horario_fim) || '--:--'}</span>
+                            return (
+                              <>
+                                <span className="text-[10px] font-bold text-primary uppercase leading-none">
+                                  {isDateValid ? format(dateObj, 'MMM', { locale: ptBR }) : '---'}
+                                </span>
+                                <span className="text-sm font-black text-white leading-none mt-0.5">
+                                  {isDateValid ? format(dateObj, 'dd') : '--'}
+                                </span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-white text-sm line-clamp-1">{ordem.empresa?.razao_social}</span>
+                          <span className="text-[10px] text-primary font-black tracking-widest uppercase">OS #{ordem.numero_os || ordem.id.slice(0, 8) || '---'}</span>
+                        </div>
+                      </div>
 
-                      </span>
+                      <div className="flex items-center gap-4 ml-1 mt-1 pt-2 border-t border-border/30">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter">Agendado</span>
+                          <div className="flex items-center gap-1 text-orange-400">
+                            <Clock size={10} />
+                            <span className="text-[10px] font-black">
+                              {ordem.data_execucao ? formatDateTimeBR(ordem.data_execucao).split(' ')[1] : '--:--'}
+                            </span>
+                          </div>
+                        </div>
 
+                        <div className="w-px h-6 bg-border/50" />
+
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter">Realizado</span>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1 text-blue-400">
+                              <span className="text-[10px] font-black whitespace-nowrap">
+                                IN: {ordem.horario_inicio ? formatDateTimeBR(ordem.horario_inicio).split(' ')[1] : '--:--'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-emerald-400">
+                              <span className="text-[10px] font-black whitespace-nowrap">
+                                OUT: {ordem.horario_fim ? formatDateTimeBR(ordem.horario_fim).split(' ')[1] : '--:--'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -672,7 +717,7 @@ export const Ordens = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <FormDatePicker control={control} name="data_execucao" label="Data do Serviço" error={errors.data_execucao?.message} />
+                  <FormDatePicker control={control} name="data_execucao" label="Data do Serviço" showTimeSelect error={errors.data_execucao?.message} />
                   <FormDatePicker control={control} name="horario_inicio" label="Check-in" showTimeSelect error={errors.horario_inicio?.message} />
                   <FormDatePicker control={control} name="horario_fim" label="Checkout" showTimeSelect error={errors.horario_fim?.message} />
                 </div>

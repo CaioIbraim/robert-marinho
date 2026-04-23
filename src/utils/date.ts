@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const formatDateTimeBR = (dateInput: string | Date | null | undefined) => {
@@ -17,6 +17,8 @@ export const formatDateTimeBR = (dateInput: string | Date | null | undefined) =>
     date = dateInput;
   }
 
+  if (!isValid(date)) return '';
+
   return format(date, 'dd/MM/yyyy HH:mm', { locale: ptBR });
 };
 
@@ -34,6 +36,8 @@ export const formatDateBR = (dateInput: string | Date | null | undefined) => {
   } else {
     date = dateInput;
   }
+
+  if (!isValid(date)) return '';
 
   return format(date, 'dd/MM/yyyy', { locale: ptBR });
 };
