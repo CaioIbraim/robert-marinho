@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, User, Download, FileText, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, User, Download, FileText, ChevronLeft, ChevronRight, Filter, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { motoristaSchema } from '../schemas';
 import type { MotoristaFormData } from '../schemas';
 import { motoristaService } from '../services/motoristas.service';
@@ -15,6 +16,7 @@ import { useLoadingStore } from '../stores/useLoadingStore';
 import { showToast, showConfirm } from '../utils/swal';
 
 export const Motoristas = () => {
+  const navigate = useNavigate();
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
   
@@ -239,10 +241,13 @@ export const Motoristas = () => {
                   <td className="px-6 py-4 text-text-muted text-xs">{motorista.pix_key || '—'}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => handleEdit(motorista)} className="p-1.5 text-text-muted hover:text-primary transition-colors">
+                       <button onClick={() => navigate(`/motoristas/${motorista.id}`)} className="p-1.5 text-text-muted hover:text-white transition-colors" title="Ver Perfil">
+                        <Eye size={18} />
+                      </button>
+                      <button onClick={() => handleEdit(motorista)} className="p-1.5 text-text-muted hover:text-primary transition-colors" title="Editar">
                         <Pencil size={18} />
                       </button>
-                      <button onClick={() => handleDelete(motorista.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-colors">
+                      <button onClick={() => handleDelete(motorista.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-colors" title="Excluir">
                         <Trash2 size={18} />
                       </button>
                     </div>

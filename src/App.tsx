@@ -16,6 +16,8 @@ import { Tarifarios } from './pages/Tarifarios';
 import { LoadingOverlay } from './components/ui/LoadingOverlay';
 import PortalCliente from "./pages/PortalCliente";
 import { OrdemDetalhe } from './pages/OrdemDetalhe';
+import { EmpresaDetalhe } from './pages/EmpresaDetalhe';
+import { MotoristaDetalhe } from './pages/MotoristaDetalhe';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] text-text-muted">
@@ -40,7 +42,9 @@ function App() {
           <Route path="/ordens/:id" element={<OrdemDetalhe />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/empresas" element={<Empresas />} />
+          <Route path="/empresas/:id" element={<EmpresaDetalhe />} />
           <Route path="/motoristas" element={<Motoristas />} />
+          <Route path="/motoristas/:id" element={<MotoristaDetalhe />} />
           <Route path="/veiculos" element={<Veiculos />} />
           <Route path="/ordens" element={<Ordens />} />
           <Route path="/tarifarios" element={<Tarifarios />} />

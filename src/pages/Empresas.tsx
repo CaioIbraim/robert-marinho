@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { empresaSchema } from '../schemas';
 import type { EmpresaFormData } from '../schemas';
 import { empresaService } from '../services/empresas.service';
@@ -14,6 +15,7 @@ import { useLoadingStore } from '../stores/useLoadingStore';
 import { showToast, showConfirm } from '../utils/swal';
 
 export const Empresas = () => {
+  const navigate = useNavigate();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
   
@@ -184,10 +186,13 @@ export const Empresas = () => {
                   <td className="px-6 py-4 text-text-muted">{empresa.telefone}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => handleEdit(empresa)} className="p-1.5 text-text-muted hover:text-primary transition-colors">
+                      <button onClick={() => navigate(`/empresas/${empresa.id}`)} className="p-1.5 text-text-muted hover:text-white transition-colors" title="Ver Perfil">
+                        <Eye size={18} />
+                      </button>
+                      <button onClick={() => handleEdit(empresa)} className="p-1.5 text-text-muted hover:text-primary transition-colors" title="Editar">
                         <Pencil size={18} />
                       </button>
-                      <button onClick={() => handleDelete(empresa.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-colors">
+                      <button onClick={() => handleDelete(empresa.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-colors" title="Excluir">
                         <Trash2 size={18} />
                       </button>
                     </div>
