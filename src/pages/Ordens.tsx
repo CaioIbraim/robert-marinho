@@ -487,6 +487,11 @@ export const Ordens = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {ordem.status === 'concluido' && (
+                        <button onClick={() => generatePaymentReceipt(ordem, ordem.empresa)} className="p-1.5 text-text-muted hover:text-blue-500 transition-colors tooltip-trigger" title="Gerar Recibo">
+                          <FileText size={18} />
+                        </button>
+                      )}
                       <button
                         onClick={() => navigate(`/ordens/${ordem.id}`)}
                         className="p-1.5 text-text-muted hover:text-cyan-400 transition-colors"
@@ -503,11 +508,7 @@ export const Ordens = () => {
                       <button onClick={() => handleDelete(ordem.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-colors tooltip-trigger" title="Excluir">
                         <Trash2 size={18} />
                       </button>
-                      {ordem.status === 'concluido' && (
-                        <button onClick={() => generatePaymentReceipt(ordem, ordem.empresa)} className="p-1.5 text-text-muted hover:text-blue-500 transition-colors tooltip-trigger" title="Gerar Recibo">
-                          <FileText size={18} />
-                        </button>
-                      )}
+
                     </div>
                   </td>
                 </tr>
