@@ -15,6 +15,7 @@ import { MapaRota } from './pages/MapaRota';
 import { Tarifarios } from './pages/Tarifarios';
 import { LoadingOverlay } from './components/ui/LoadingOverlay';
 import PortalCliente from "./pages/PortalCliente";
+import { OrdemDetalhe } from './pages/OrdemDetalhe';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] text-text-muted">
@@ -33,9 +34,10 @@ function App() {
         <Route path="/portal" element={<PortalCliente />} />   {/* ou /cliente, /app */}
         {/* Auth */}
         <Route path="/login" element={<Login />} />
-
+        
         {/* Dashboard (com layout correto) */}
         <Route element={<DashboardLayout />}>
+          <Route path="/ordens/:id" element={<OrdemDetalhe />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/empresas" element={<Empresas />} />
           <Route path="/motoristas" element={<Motoristas />} />

@@ -56,13 +56,8 @@ export const Login = () => {
       <header className="sticky top-0 z-50 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-5">
           <Link to="/" className="flex items-center gap-3">
-            <img src="/logo.png" alt="Robert Marinho Logística" className="w-12 h-8" />
-            <div>
-              <span className="font-tight uppercase text-2xl tracking-tight">
-                <span className="text-red-500">Robert Marinho</span>
-              </span>
-              <p className="text-xs text-zinc-500 -mt-1">Soluções em Logística</p>
-            </div>
+            <img src="/logo.png" alt="Logo" className="h-8 md:h-10" />
+           
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-sm">
