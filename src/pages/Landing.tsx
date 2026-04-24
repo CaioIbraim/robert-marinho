@@ -38,7 +38,7 @@ export default function Landing() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link to="/login" className="hidden md:block text-sm hover:text-red-500">
+            <Link to="/login" className="text-sm font-medium hover:text-red-500">
               Acessar
             </Link>
             <a href="#orcamento" className="bg-red-600 px-4 py-2 rounded-lg text-sm">
