@@ -84,20 +84,39 @@ export const generatePaymentReceipt = async (ordem: any, empresa: any) => {
   doc.text(`Check-out: ${formatDateTime(ordem.horario_fim)}`, 20, 176);
 
   // ==========================
-  // 💰 VALOR
+  // 💰 VALOR E DETALHAMENTO
   // ==========================
   doc.line(20, 185, 190, 185);
 
-  const valor = Number(ordem.valor_faturamento || 0);
+  const total = Number(ordem.valor_faturamento || 0);
+  const scheduled = new Date(ordem.data_execucao);
+  const checkin = new Date(ordem.horario_inicio);
+  let waitMinutes = 0;
+  
+  if (checkin > scheduled) {
+    waitMinutes = Math.floor((checkin.getTime() - scheduled.getTime()) / 60000);
+  }
 
-  const formattedValue = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(valor);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  doc.setFontSize(15);
-  doc.setTextColor(0, 128, 0);
-  doc.text(`Valor Total: ${formattedValue}`, 20, 200);
+  if (waitMinutes > 0) {
+    const baseValue = total / (1 + (waitMinutes * 0.1));
+    const extraValue = total - baseValue;
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Valor Base do Serviço: ${formatCurrency(baseValue)}`, 20, 195);
+    doc.setTextColor(231, 76, 60); // Vermelho para o extra
+    doc.text(`Adicional de Espera (${waitMinutes} min): ${formatCurrency(extraValue)}`, 20, 202);
+    
+    doc.setFontSize(15);
+    doc.setTextColor(0, 128, 0);
+    doc.text(`Valor Total: ${formatCurrency(total)}`, 20, 215);
+  } else {
+    doc.setFontSize(15);
+    doc.setTextColor(0, 128, 0);
+    doc.text(`Valor Total: ${formatCurrency(total)}`, 20, 200);
+  }
 
   // ==========================
   // 💸 QR CODE PIX (NOVO)
@@ -105,7 +124,7 @@ export const generatePaymentReceipt = async (ordem: any, empresa: any) => {
   const chavePix = 'SUA_CHAVE_PIX_AQUI'; // ⚠️ TROCAR ISSO
 
   // Payload simples (funciona na maioria dos bancos)
-  const payloadPix = `00020126580014BR.GOV.BCB.PIX01${chavePix.length}${chavePix}520400005303986540${valor.toFixed(2)}5802BR5913${(empresa?.razao_social || 'EMPRESA').substring(0, 13)}6009SAO PAULO62070503***6304`;
+  const payloadPix = `00020126580014BR.GOV.BCB.PIX01${chavePix.length}${chavePix}520400005303986540${total.toFixed(2)}5802BR5913${(empresa?.razao_social || 'EMPRESA').substring(0, 13)}6009SAO PAULO62070503***6304`;
 
   try {
     const qrCodeBase64 = await QRCode.toDataURL(payloadPix);

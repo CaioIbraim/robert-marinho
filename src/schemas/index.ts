@@ -46,6 +46,7 @@ export const ordemServicoSchema = z.object({
   data_execucao: z.string().min(1, 'Data de execução é obrigatória'),
   valor_faturamento: z.coerce.number().min(0, 'Valor deve ser positivo'),
   valor_custo_motorista: z.coerce.number().min(0).optional(),
+  numero_os: z.string().optional(),
   status: z.enum(['pendente', 'em_andamento', 'concluido', 'cancelado']),
 });
 
