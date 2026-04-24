@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuthStore } from '../stores/authStore';
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,6 +35,7 @@ import { useNavigate } from 'react-router-dom';
 
 export const Ordens = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
@@ -61,6 +63,11 @@ export const Ordens = () => {
 
   const { register, handleSubmit, reset, watch, setValue, control, formState: { errors } } = useForm<OrdemServicoFormData>({
     resolver: zodResolver(ordemServicoSchema) as any,
+    defaultValues: {
+      data_execucao: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
+      status: 'pendente',
+      valor_faturamento: 0,
+    }
   });
 
   const watchedMotoristaId = watch('motorista_id');
@@ -96,33 +103,65 @@ export const Ordens = () => {
   const onSubmit: SubmitHandler<OrdemServicoFormData> = async (data) => {
     try {
       setGlobalLoading(true);
+      
+      // Limpa string vazia para o UUID (evita erro de sintaxe syntax syntax error uuid: "")
+      let finalTarifarioId = data.tarifario_id && data.tarifario_id !== "" ? data.tarifario_id : null;
+
+      // Se a rota for manual (origem/destino preenchidos sem tarifário selecionado)
+      if (!finalTarifarioId && data.origem && data.destino) {
+        try {
+          const { data: existingTarifa } = await supabase
+            .from('tarifarios')
+            .select('id')
+            .eq('origem', data.origem)
+            .eq('destino', data.destino)
+            .maybeSingle();
+
+          if (existingTarifa) {
+            finalTarifarioId = existingTarifa.id;
+          } else {
+            const { data: newTarifa } = await supabase
+              .from('tarifarios')
+              .insert({
+                origem: data.origem,
+                destino: data.destino,
+                valor_venda: data.valor_faturamento || 0,
+                valor_custo: data.valor_custo_motorista || 0,
+                descricao: `Auto-cadastrado via OS #${data.numero_os || 'Manual'} em ${format(new Date(), 'dd/MM/yyyy')} por ${user?.user_metadata?.full_name || 'Admin'}`
+              })
+              .select()
+              .maybeSingle();
+            
+            if (newTarifa) finalTarifarioId = newTarifa.id;
+          }
+        } catch (tarifaError) {
+          console.warn('Erro ao processar tarifário automático:', tarifaError);
+        }
+      }
+
+      const payload = {
+        ...data,
+        tarifario_id: finalTarifarioId,
+        numero_os: data.numero_os && data.numero_os !== "" ? data.numero_os : null,
+        horario_inicio: data.horario_inicio && data.horario_inicio !== "" ? data.horario_inicio : null,
+        horario_fim: data.horario_fim && data.horario_fim !== "" ? data.horario_fim : null,
+      };
+
       if (editingId) {
-        const oldOrdem = ordens.find(o => o.id === editingId);
-        await ordemService.update(editingId, data);
-
-        // Notificação de alteração de status
-        if (oldOrdem?.status !== data.status) {
-          const statusMap: Record<string, string> = {
-            'pendente': 'Pendente',
-            'em_andamento': 'Em Andamento',
-            'concluido': 'Concluída',
-            'cancelado': 'Cancelada'
-          };
-
-          await notificationService.create({
-            titulo: `OS ${statusMap[data.status as string]}`,
-            mensagem: `A OS para ${data.destino} foi alterada para o status: ${statusMap[data.status as string]}.`,
-            tipo: data.status === 'concluido' ? 'success' : data.status === 'cancelado' ? 'error' : 'info',
-            link: '/ordens'
-          });
-
-          if (data.status === 'concluido') {
+        await ordemService.update(editingId, payload);
+        
+        // Notificação e lógica de encerramento
+        if (data.status === 'concluido') {
+          const { data: financeiro } = await supabase.from('recebimentos').select('status').eq('ordem_id', editingId).maybeSingle();
+          if (financeiro?.status !== 'pago') {
             setOrdemToConfirm(editingId);
           }
         }
-        showToast('Ordem atualizada com sucesso!');
+        showToast('Ordem atualizada!');
       } else {
-        await ordemService.create(data);
+        // Usa o serviço para criar a OS e o registro financeiro automaticamente
+        await ordemService.create(payload);
+
         await notificationService.create({
           titulo: 'Nova Ordem Criada',
           mensagem: `Uma nova OS para ${data.destino} foi criada com sucesso.`,
@@ -131,6 +170,7 @@ export const Ordens = () => {
         });
         showToast('Nova ordem criada!');
       }
+
       setIsModalOpen(false);
       reset({
         empresa_id: '',
@@ -141,7 +181,7 @@ export const Ordens = () => {
         destino: '',
         passageiro: '',
         voucher: '',
-        data_execucao: new Date().toISOString().split('T')[0],
+        data_execucao: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
         horario_inicio: '',
         horario_fim: '',
         valor_faturamento: 0,
@@ -688,9 +728,10 @@ export const Ordens = () => {
                   <Input label="Destino" placeholder="Para onde vai..." {...register('destino')} error={errors.destino?.message} />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <Input label="Passageiro" placeholder="Nome do passageiro" {...register('passageiro')} error={errors.passageiro?.message} />
                   <Input label="Voucher / Requisição" placeholder="Código de controle" {...register('voucher')} error={errors.voucher?.message} />
+                  <Input label="Número da OS" placeholder="Ex: OS-2024-001" {...register('numero_os')} error={errors.numero_os?.message} />
                 </div>
               </section>
 

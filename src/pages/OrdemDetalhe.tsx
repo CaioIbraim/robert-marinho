@@ -9,7 +9,10 @@ import { ArrowLeft, FileText, MapPin, Navigation, Clock, Calendar, Users, Car, D
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { generatePaymentReceipt } from '../utils/exportRecibo';
 import QRCode from 'qrcode';
-import { differenceInMinutes, parseISO } from 'date-fns';
+import { differenceInMinutes, parseISO, format } from 'date-fns';
+import { showToast } from '../utils/swal';
+import { notificationService } from '../services/notifications.service';
+import Swal from 'sweetalert2';
 
 export const OrdemDetalhe = () => {
   const { id } = useParams();
@@ -17,9 +20,18 @@ export const OrdemDetalhe = () => {
 
   const [ordem, setOrdem] = useState<OrdemServico | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 10000); // Atualiza a cada 10 segundos para precisão no faturamento dinâmico
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -74,6 +86,117 @@ export const OrdemDetalhe = () => {
   };
 
 
+  const handleCheckIn = async () => {
+    if (!ordem) return;
+    try {
+      const scheduled = parseISO(ordem.data_execucao);
+      const nowRaw = new Date();
+      const now = format(nowRaw, "yyyy-MM-dd'T'HH:mm:ss");
+      
+      let extraCharge = 0;
+      let waitTimeMinutes = 0;
+      
+      if (nowRaw > scheduled) {
+        waitTimeMinutes = differenceInMinutes(nowRaw, scheduled);
+        extraCharge = waitTimeMinutes * 0.1 * (ordem.valor_faturamento || 0);
+      }
+
+      const total = (ordem.valor_faturamento || 0) + extraCharge;
+
+      const result = await Swal.fire({
+        title: 'Confirmar Check-in',
+        html: `
+          <div style="text-align: left; font-size: 14px; color: #fff;">
+            <p><b>📍 Agendado:</b> ${formatDateTimeBR(ordem.data_execucao)}</p>
+            <p><b>⏰ Atual:</b> ${formatDateTimeBR(nowRaw)}</p>
+            ${waitTimeMinutes > 0 ? `
+              <div style="margin-top: 15px; padding: 10px; background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.2); border-radius: 8px;">
+                <p style="color: #f97316; font-weight: bold; margin-bottom: 5px;">⚠️ ATRASO DETECTADO: ${waitTimeMinutes} min</p>
+                <p><b>Adicional de Espera:</b> R$ ${extraCharge.toFixed(2)}</p>
+                <p><b>Novo Total:</b> R$ ${total.toFixed(2)}</p>
+              </div>
+            ` : '<p style="color: #22c55e; margin-top: 10px;">✅ No horário esperado.</p>'}
+            <p style="margin-top: 15px; font-size: 12px; color: #999;">Deseja confirmar o início deste serviço?</p>
+          </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar Início',
+        cancelButtonText: 'Cancelar',
+        background: '#1a1a1a',
+        confirmButtonColor: '#ff2d2d',
+      });
+
+      if (!result.isConfirmed) return;
+
+      setUpdating(true);
+
+      // Persiste no banco de dados
+      await ordemService.update(id!, { 
+        horario_inicio: now, 
+        status: 'em_andamento',
+        valor_faturamento: total
+      });
+
+      // Notificação de Auditoria
+      if (extraCharge > 0) {
+        await notificationService.create({
+          titulo: `Adicional de Espera - OS #${ordem.numero_os || id?.slice(0,8)}`,
+          mensagem: `Atraso de ${waitTimeMinutes} min. Adicional: R$ ${extraCharge.toFixed(2)}. Novo total: R$ ${total.toFixed(2)}.`,
+          tipo: 'info',
+          link: `/ordens/${id}`
+        });
+      }
+
+      showToast('Check-in realizado com sucesso!');
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao realizar check-in', 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    if (!ordem || !ordem.horario_inicio) return;
+    try {
+      const nowRaw = new Date();
+      const now = format(nowRaw, "yyyy-MM-dd'T'HH:mm:ss");
+      const duration = differenceInMinutes(nowRaw, parseISO(ordem.horario_inicio));
+
+      const result = await Swal.fire({
+        title: 'Finalizar Serviço (Check-out)',
+        html: `
+          <div style="text-align: left; font-size: 14px; color: #fff;">
+            <p><b>🏁 Horário de Início:</b> ${formatDateTimeBR(ordem.horario_inicio)}</p>
+            <p><b>⏰ Horário de Término:</b> ${formatDateTimeBR(nowRaw)}</p>
+            <p style="margin-top: 10px;"><b>⏱️ Duração da Viagem:</b> ${duration} min</p>
+            <p style="margin-top: 15px; font-size: 12px; color: #999;">Confirmar o encerramento desta ordem de serviço?</p>
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Finalizar OS',
+        cancelButtonText: 'Manter em Aberto',
+        background: '#1a1a1a',
+        confirmButtonColor: '#10b981',
+      });
+
+      if (!result.isConfirmed) return;
+
+      setUpdating(true);
+      await ordemService.update(id!, { horario_fim: now, status: 'concluido' });
+      showToast('Serviço finalizado com sucesso!');
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao realizar check-out', 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleGenerateReceipt = async () => {
     if (!ordem) return;
     await generatePaymentReceipt(ordem, ordem.empresa);
@@ -100,6 +223,29 @@ export const OrdemDetalhe = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+           <div className="flex gap-2 mr-4">
+              {!ordem.horario_inicio && ordem.status !== 'cancelado' && (
+                <Button 
+                  size="sm" 
+                  onClick={handleCheckIn} 
+                  disabled={updating}
+                  className="bg-blue-600 hover:bg-blue-700 text-[10px] font-black uppercase tracking-widest px-4"
+                >
+                  Confirmar Check-in
+                </Button>
+              )}
+              {ordem.horario_inicio && !ordem.horario_fim && (
+                <Button 
+                  size="sm" 
+                  onClick={handleCheckOut} 
+                  disabled={updating}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-[10px] font-black uppercase tracking-widest px-4"
+                >
+                  Finalizar (Check-out)
+                </Button>
+              )}
+           </div>
+           <div className="w-px h-8 bg-border hidden sm:block mr-2" />
            <div className="flex flex-col items-end mr-2">
               <span className="text-[10px] text-text-muted uppercase font-black">Status da OS</span>
               <StatusBadge status={ordem.status} className="mt-1" />
@@ -174,21 +320,42 @@ export const OrdemDetalhe = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 rounded-xl bg-surface/50 border border-border">
-                    <p className="text-[10px] uppercase font-bold text-text-muted mb-1">Check-in</p>
-                    <p className="text-base font-bold text-blue-400">{ordem.horario_inicio ? formatDateTimeBR(ordem.horario_inicio).split(' ')[1] : '--:--'}</p>
+                    <p className="text-[10px] uppercase font-bold text-text-muted mb-2">Check-in Realizado</p>
+                    {ordem.horario_inicio ? (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-white/50 font-mono uppercase">{formatDateTimeBR(ordem.horario_inicio).split(' ')[0]}</p>
+                        <p className="text-xl font-black text-blue-400">{formatDateTimeBR(ordem.horario_inicio).split(' ')[1]}</p>
+                      </div>
+                    ) : (
+                      <p className="text-lg font-bold text-zinc-700">--:--</p>
+                    )}
                     {(() => {
                       const scheduled = parseISO(ordem.data_execucao);
-                      const actualStart = ordem.horario_inicio ? parseISO(ordem.horario_inicio) : null;
-                      if (actualStart && actualStart > scheduled) {
-                        const wait = differenceInMinutes(actualStart, scheduled);
-                        return <span className="text-[9px] font-black text-orange-500 uppercase">Atraso: {wait} min</span>;
+                      const now = new Date();
+                      const referenceTime = ordem.horario_inicio ? parseISO(ordem.horario_inicio) : now;
+                      
+                      // Só mostra atraso se a OS não estiver cancelada e já passou do horário
+                      if (referenceTime > scheduled && ordem.status !== 'cancelado') {
+                        const wait = differenceInMinutes(referenceTime, scheduled);
+                        return (
+                          <div className="mt-2 text-[9px] font-black bg-orange-500/10 text-orange-500 uppercase px-2 py-0.5 rounded border border-orange-500/20 w-fit">
+                            {ordem.horario_inicio ? 'Atraso Confirmado: ' : 'Atraso em Tempo Real: '} {wait} min
+                          </div>
+                        );
                       }
                       return null;
                     })()}
                   </div>
                   <div className="p-3 rounded-xl bg-surface/50 border border-border">
-                    <p className="text-[10px] uppercase font-bold text-text-muted mb-1">Check-out</p>
-                    <p className="text-base font-bold text-emerald-400">{ordem.horario_fim ? formatDateTimeBR(ordem.horario_fim).split(' ')[1] : '--:--'}</p>
+                    <p className="text-[10px] uppercase font-bold text-text-muted mb-2">Check-out Realizado</p>
+                    {ordem.horario_fim ? (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-white/50 font-mono uppercase">{formatDateTimeBR(ordem.horario_fim).split(' ')[0]}</p>
+                        <p className="text-xl font-black text-emerald-400">{formatDateTimeBR(ordem.horario_fim).split(' ')[1]}</p>
+                      </div>
+                    ) : (
+                      <p className="text-lg font-bold text-zinc-700">--:--</p>
+                    )}
                   </div>
                 </div>
 
@@ -243,12 +410,7 @@ export const OrdemDetalhe = () => {
             </h2>
             
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-text-muted font-medium">Valor Bruto:</span>
-                <span className="text-2xl font-black text-white">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ordem.valor_faturamento)}
-                </span>
-              </div>
+
 
               {typeof ordem.valor_custo_motorista === 'number' ? (
                 <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10 space-y-2">
@@ -269,22 +431,70 @@ export const OrdemDetalhe = () => {
 
               {/* ADICIONAL DE ESPERA */}
               {(() => {
+                const totalInDB = ordem.valor_faturamento || 0;
                 const scheduled = parseISO(ordem.data_execucao);
-                const actualStart = ordem.horario_inicio ? parseISO(ordem.horario_inicio) : null;
-                if (actualStart && actualStart > scheduled) {
-                   const wait = differenceInMinutes(actualStart, scheduled);
-                   const extra = wait * 0.1 * ordem.valor_faturamento;
+                const referenceTime = ordem.horario_inicio ? parseISO(ordem.horario_inicio) : currentTime;
+
+                if (referenceTime > scheduled && ordem.status !== 'cancelado') {
+                   const wait = differenceInMinutes(referenceTime, scheduled);
+                   
+                   let baseValue = totalInDB;
+                   let extraValue = 0;
+                   let displayTotal = totalInDB;
+
+                   if (ordem.horario_inicio) {
+                      // Já foi gravado no banco incluindo o extra, extraímos a base para o recibo/tela
+                      baseValue = totalInDB / (1 + (wait * 0.1));
+                      extraValue = totalInDB - baseValue;
+                   } else {
+                      // Ainda não gravou o extra, o totalInDB é a base
+                      extraValue = wait * 0.1 * totalInDB;
+                      displayTotal = totalInDB + extraValue;
+                   }
+
                    return (
-                      <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 space-y-2 mt-4 animate-pulse">
-                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-black text-orange-500 uppercase">Espere Excedida ({wait} min)</span>
-                            <span className="text-sm font-bold text-white">+{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(extra)}</span>
-                         </div>
-                         <p className="text-[9px] text-orange-400/70 italic leading-tight">Cálculo: {wait}min × 10% do valor base por minuto de atraso no check-in.</p>
+                      <div className="space-y-4">
+                        <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 space-y-2 mt-4 animate-in fade-in duration-500 relative overflow-hidden">
+                           <div className="flex justify-between items-center text-xs">
+                              <span className="font-bold text-orange-500">VALOR BASE:</span>
+                              <span className="text-white/60">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(baseValue)}</span>
+                           </div>
+                           <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-black text-orange-500 uppercase flex items-center gap-2">
+                                 {ordem.horario_inicio ? (
+                                    <span className="flex h-2 w-2 rounded-full bg-orange-500"></span>
+                                 ) : (
+                                    <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-ping"></span>
+                                 )}
+                                 {ordem.horario_inicio ? 'Espera Confirmada' : 'Espera em Acúmulo'} ({wait} min)
+                              </span>
+                              <span className="text-sm font-bold text-white">+{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(extraValue)}</span>
+                           </div>
+                           
+                           {!ordem.horario_inicio && (
+                              <div className="absolute bottom-0 left-0 h-0.5 bg-orange-500/30 w-full overflow-hidden">
+                                 <div className="h-full bg-orange-500 animate-[loading_2s_linear_infinite]" style={{ width: '30%' }}></div>
+                              </div>
+                           )}
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                          <span className="text-sm text-emerald-500 font-bold uppercase tracking-widest">Total Corrigido:</span>
+                          <span className="text-2xl font-black text-white">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(displayTotal)}
+                          </span>
+                        </div>
                       </div>
                    );
                 }
-                return null;
+                return (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-text-muted font-medium">Valor Total:</span>
+                    <span className="text-2xl font-black text-white">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ordem.valor_faturamento)}
+                    </span>
+                  </div>
+                );
               })()}
 
               {/* PIX QR CODE */}

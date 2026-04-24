@@ -34,18 +34,19 @@ export const ordemServicoSchema = z.object({
   empresa_id: z.string().uuid('Selecione uma empresa'),
   motorista_id: z.string().uuid('Selecione um motorista'),
   veiculo_id: z.string().uuid('Selecione um veículo'),
-  tarifario_id: z.string().uuid().optional().or(z.literal('')),
+  tarifario_id: z.string().uuid().nullable().optional().or(z.literal('')),
   origem: z.string().min(2, 'Origem inválida'),
   destino: z.string().min(2, 'Destino inválido'),
-  passageiro: z.string().optional(),
-  voucher: z.string().optional(),
+  passageiro: z.string().nullable().optional(),
+  voucher: z.string().nullable().optional(),
 
   horario_inicio: z.string().nullable().optional(),
   horario_fim: z.string().nullable().optional(),
 
   data_execucao: z.string().min(1, 'Data de execução é obrigatória'),
   valor_faturamento: z.coerce.number().min(0, 'Valor deve ser positivo'),
-  valor_custo_motorista: z.coerce.number().min(0).optional(),
+  valor_custo_motorista: z.coerce.number().nullable().optional(),
+  numero_os: z.string().nullable().optional(),
   status: z.enum(['pendente', 'em_andamento', 'concluido', 'cancelado']),
 });
 

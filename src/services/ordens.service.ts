@@ -56,46 +56,67 @@ export const ordemService = {
   },
 
   async create(data: OrdemServicoFormData) {
-    // Sanitização para evitar erro de timestamp vazio
-    const sanitizedData = {
+    // Sanitização centralizada para evitar erros de sintaxe no Supabase ("" para campos que esperam UUID ou Timestamp)
+    const payload = {
       ...data,
-      horario_inicio: data.horario_inicio || null,
-      horario_fim: data.horario_fim || null,
+      horario_inicio: data.horario_inicio && data.horario_inicio !== "" ? data.horario_inicio : null,
+      horario_fim: data.horario_fim && data.horario_fim !== "" ? data.horario_fim : null,
+      tarifario_id: data.tarifario_id && data.tarifario_id !== "" ? data.tarifario_id : null,
+      numero_os: data.numero_os && data.numero_os !== "" ? data.numero_os : null,
     };
 
     const { data: newOrdem, error } = await supabase
       .from('ordens_servico')
-      .insert([sanitizedData])
+      .insert([payload])
       .select('id')
-      .single();
+      .maybeSingle();
     
     if (error) throw error;
+    if (!newOrdem) throw new Error('Falha ao obter ID da nova OS');
     
+    // Tabela financeira é 'recebimentos'
     const { error: recError } = await supabase
       .from('recebimentos')
       .insert([{
         ordem_id: newOrdem.id,
-        valor: data.valor_faturamento,
+        valor: data.valor_faturamento || 0,
         status: 'pendente'
       }]);
       
     if (recError) throw recError;
+    return newOrdem;
   },
 
   async update(id: string, data: Partial<OrdemServicoFormData>) {
-  const sanitizedData: Partial<OrdemServicoFormData> = {
-    ...data,
-    horario_inicio: data.horario_inicio || null,
-    horario_fim: data.horario_fim || null,
-  };
+    // Só atualiza os campos que foram passados, removendo o risco de sobrescrever com null indesejado
+    const payload: any = { ...data };
+    
+    // Tratamento específico: se for string vazia, vira null. Se for undefined, remove do payload.
+    if (payload.horario_inicio === '') payload.horario_inicio = null;
+    if (payload.horario_fim === '') payload.horario_fim = null;
+    
+    // Remove chaves explicitamente undefined para não zerar dados existentes
+    Object.keys(payload).forEach(key => {
+      if (payload[key] === undefined) {
+        delete payload[key];
+      }
+    });
 
-  const { error } = await supabase
-    .from('ordens_servico')
-    .update(sanitizedData)
-    .eq('id', id);
+    const { error } = await supabase
+      .from('ordens_servico')
+      .update(payload)
+      .eq('id', id);
 
-  if (error) throw error;
-},
+    if (error) throw error;
+
+    // Sincroniza valor faturamento se ele existir no payload
+    if (payload.valor_faturamento !== undefined) {
+      await supabase
+        .from('recebimentos')
+        .update({ valor: payload.valor_faturamento })
+        .eq('ordem_id', id);
+    }
+  },
 
   async delete(id: string) {
     const { error } = await supabase
