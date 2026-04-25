@@ -33,7 +33,12 @@ export const Financeiro = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterEmpresa, setFilterEmpresa] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterDataInicio, setFilterDataInicio] = useState('');
+  const [filterDataFim, setFilterDataFim] = useState('');
   const [paymentToForce, setPaymentToForce] = useState<any | null>(null);
+  const [empresas, setEmpresas] = useState<any[]>([]);
   
   const { setGlobalLoading } = useLoadingStore();
   
@@ -43,22 +48,25 @@ export const Financeiro = () => {
 
   const loadData = async () => {
     try {
-      const [recRes, ordensRes] = await Promise.all([
+      const [recRes, ordensRes, empRes] = await Promise.all([
         supabase.from('recebimentos')
           .select(`
             *,
             ordem:ordens_servico(
               *,
-              motorista:motoristas(*)
+              motorista:motoristas(*),
+              empresa:empresas(*)
             )
           `)
           .order('created_at', { ascending: false }),
         supabase.from('ordens_servico')
           .select('id, numero_os, origem, destino, valor_faturamento')
-          .in('status', ['pendente', 'em_andamento', 'concluido'])
+          .in('status', ['pendente', 'em_andamento', 'concluido']),
+        supabase.from('empresas').select('id, razao_social, nome_fantasia').order('nome_fantasia')
       ]);
       setRecebimentos(recRes.data || []);
       setOrdens(ordensRes.data || []);
+      setEmpresas(empRes.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -205,11 +213,39 @@ export const Financeiro = () => {
      }
   };
 
-  const filtered = recebimentos.filter(r => 
-    (r.forma_pagamento?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
-    (r.ordem?.origem?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (r.ordem?.numero_os?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-  );
+  const filtered = recebimentos.filter(r => {
+    const matchesSearch = 
+      (r.forma_pagamento?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+      (r.ordem?.origem?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (r.ordem?.empresa?.nome_fantasia?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (r.ordem?.empresa?.razao_social?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (r.ordem?.numero_os?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    
+    const matchesEmpresa = filterEmpresa ? r.ordem?.empresa_id === filterEmpresa : true;
+    const matchesStatus = filterStatus ? r.status === filterStatus : true;
+    
+    let matchesData = true;
+    if (filterDataInicio || filterDataFim) {
+      const dataPagamento = r.data_pagamento ? new Date(r.data_pagamento.split('T')[0]) : null;
+      if (!dataPagamento && r.status === 'pendente') {
+         // Se quer filtrar por data, mas está pendente e não tem data, ou não tem previsão?
+         // Neste caso vamos considerar a data_pagamento, ou rejeitar se não tem data.
+         matchesData = false;
+      }
+      if (dataPagamento) {
+        if (filterDataInicio) {
+          const dtInicio = new Date(filterDataInicio);
+          if (dataPagamento < dtInicio) matchesData = false;
+        }
+        if (filterDataFim) {
+           const dtFim = new Date(filterDataFim);
+           if (dataPagamento > dtFim) matchesData = false;
+        }
+      }
+    }
+
+    return matchesSearch && matchesEmpresa && matchesStatus && matchesData;
+  });
 
   const handleExportExcel = () => {
     const data = filtered.map(r => ({
@@ -220,9 +256,10 @@ export const Financeiro = () => {
       'Repasse Motorista': r.ordem?.valor_custo_motorista || 0,
       'Lucro Líquido': r.valor - (r.ordem?.valor_custo_motorista || 0),
       'Data Pagamento': r.data_pagamento,
-      'Forma Pagamento': r.forma_pagamento
+      'Forma Pagamento': r.forma_pagamento,
+      'Empresa': r.ordem?.empresa?.nome_fantasia || r.ordem?.empresa?.razao_social || '---'
     }));
-    exportToExcel(data, 'recebimentos_financeiros');
+    exportToExcel(data, `financeiro_filtrado_${new Date().toISOString().split('T')[0]}`);
   };
 
   const handleExportPDF = () => {
@@ -310,18 +347,61 @@ export const Financeiro = () => {
       </div>
 
       <Card className="!p-0 overflow-visible">
-        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-center gap-4">
+        <div className="p-4 border-b border-border flex flex-col md:flex-row items-center gap-4">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input
               type="text"
-              placeholder="Buscar por OS, forma de pagamento ou origem..."
+              placeholder="Buscar por OS, empresa, forma pgto ou origem..."
               className="w-full bg-background border border-border rounded-md pl-10 pr-4 py-2 text-sm input-focus"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <select
+              className="bg-background border border-border rounded-md px-3 py-2 text-sm text-white"
+              value={filterEmpresa}
+              onChange={(e) => setFilterEmpresa(e.target.value)}
+            >
+              <option value="">Todas Empresas</option>
+              {empresas.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.nome_fantasia || emp.razao_social}</option>
+              ))}
+            </select>
+
+            <select
+              className="bg-background border border-border rounded-md px-3 py-2 text-sm text-white"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="">Todos Status</option>
+              <option value="pendente">Pendente</option>
+              <option value="pago">Pago</option>
+              <option value="atrasado">Atrasado</option>
+            </select>
+            
+            <div className="flex items-center gap-2">
+               <input
+                 type="date"
+                 className="bg-background border border-border rounded-md px-2 py-2 text-sm text-white"
+                 value={filterDataInicio}
+                 onChange={(e) => setFilterDataInicio(e.target.value)}
+                 title="Data Inicio"
+               />
+               <span className="text-text-muted text-sm">até</span>
+               <input
+                 type="date"
+                 className="bg-background border border-border rounded-md px-2 py-2 text-sm text-white"
+                 value={filterDataFim}
+                 onChange={(e) => setFilterDataFim(e.target.value)}
+                 title="Data Fim"
+               />
+            </div>
+          </div>
+
+          <div className="flex gap-2 w-full sm:w-auto md:ml-auto">
              <button onClick={handleExportExcel} className="p-2 bg-surface border border-border rounded-md hover:border-green-500 hover:text-green-500 text-text-muted transition-colors tooltip-trigger" title="Exportar para Excel">
                 <Download size={18} />
              </button>
@@ -360,6 +440,11 @@ export const Financeiro = () => {
                       <div>
                         <p className="font-medium text-white">{r.ordem?.origem} → {r.ordem?.destino}</p>
                         <p className="text-xs text-text-muted">OS N°: {r.ordem?.numero_os || r.ordem?.id?.slice(0,8)}</p>
+                        {r.ordem?.empresa && (
+                          <p className="text-[10px] text-primary truncate max-w-[150px]" title={r.ordem.empresa.nome_fantasia || r.ordem.empresa.razao_social}>
+                            {r.ordem.empresa.nome_fantasia || r.ordem.empresa.razao_social}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </td>
