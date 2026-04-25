@@ -49,6 +49,8 @@ export const Ordens = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [empresaFilter, setEmpresaFilter] = useState('');
   const [tipoMotoristaFilter, setTipoMotoristaFilter] = useState('');
+  const [filterDataInicio, setFilterDataInicio] = useState('');
+  const [filterDataFim, setFilterDataFim] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -323,7 +325,25 @@ export const Ordens = () => {
     const matchEmpresa = empresaFilter === '' || o.empresa_id === empresaFilter;
     const matchTipo = tipoMotoristaFilter === '' ||
       (tipoMotoristaFilter === 'terceiro' ? o.motorista?.tipo_vinculo === 'terceiro' : o.motorista?.tipo_vinculo !== 'terceiro');
-    return matchSearch && matchStatus && matchEmpresa && matchTipo;
+    
+    let matchData = true;
+    if (filterDataInicio || filterDataFim) {
+      const dataExec = o.data_execucao ? new Date(o.data_execucao.split('T')[0]) : null;
+      if (dataExec) {
+        if (filterDataInicio) {
+          const dtInicio = new Date(filterDataInicio);
+          if (dataExec < dtInicio) matchData = false;
+        }
+        if (filterDataFim) {
+           const dtFim = new Date(filterDataFim);
+           if (dataExec > dtFim) matchData = false;
+        }
+      } else {
+        matchData = false;
+      }
+    }
+
+    return matchSearch && matchStatus && matchEmpresa && matchTipo && matchData;
   });
 
   const totalPages = Math.ceil(filteredOrdens.length / itemsPerPage);
@@ -347,7 +367,7 @@ export const Ordens = () => {
       Lucro: o.valor_custo_motorista ? o.valor_faturamento - o.valor_custo_motorista : o.valor_faturamento,
       Status: o.status
     }));
-    exportToExcel(data, 'ordens_servico');
+    exportToExcel(data, `ordens_servico_filtradas_${new Date().toISOString().split('T')[0]}`);
   };
 
   const handleExportFaturamento = () => {
@@ -457,6 +477,24 @@ export const Ordens = () => {
                 <option value="">Todas Empresas</option>
                 {empresas.map(e => <option key={e.id} value={e.id}>{e.razao_social}</option>)}
               </select>
+            </div>
+
+            <div className="flex items-center gap-2 bg-background border border-border rounded-md px-2 py-1">
+               <input
+                 type="date"
+                 className="bg-transparent border-none text-xs text-white focus:ring-0 p-1"
+                 value={filterDataInicio}
+                 onChange={(e) => { setFilterDataInicio(e.target.value); setCurrentPage(1); }}
+                 title="De"
+               />
+               <span className="text-text-muted text-[10px]">até</span>
+               <input
+                 type="date"
+                 className="bg-transparent border-none text-xs text-white focus:ring-0 p-1"
+                 value={filterDataFim}
+                 onChange={(e) => { setFilterDataFim(e.target.value); setCurrentPage(1); }}
+                 title="Até"
+               />
             </div>
 
             <div className="flex gap-2">
