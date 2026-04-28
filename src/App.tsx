@@ -78,23 +78,34 @@ function App() {
           <Route element={<RoleProtectedRoute allowedRoles={['admin', 'operador']} redirectPath="/admin/login" />}>
             <Route element={<DashboardLayout />}>
               <Route path="/admin/dashboard" element={<Dashboard />} />
-              <Route path="/empresas" element={<Empresas />} />
-              <Route path="/empresas/:id" element={<EmpresaDetalhe />} />
-              <Route path="/motoristas" element={<Motoristas />} />
-              <Route path="/motoristas/:id" element={<MotoristaDetalhe />} />
-              <Route path="/veiculos" element={<Veiculos />} />
-              <Route path="/ordens" element={<Ordens />} />
-              <Route path="/ordens/:id" element={<OrdemDetalhe />} />
-              <Route path="/tarifarios" element={<Tarifarios />} />
-              <Route path="/financeiro" element={<Financeiro />} />
-              <Route path="/fechamento" element={<FechamentoFinanceiro />} />
-              <Route path="/notificacoes" element={<Notificacoes />} />
-              <Route path="/mapa" element={<MapaRota />} />
-              <Route path="/usuarios" element={<AprovacaoUsuarios />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/admin/empresas" element={<Empresas />} />
+              <Route path="/admin/empresas/:id" element={<EmpresaDetalhe />} />
+              <Route path="/admin/motoristas" element={<Motoristas />} />
+              <Route path="/admin/motoristas/:id" element={<MotoristaDetalhe />} />
+              <Route path="/admin/veiculos" element={<Veiculos />} />
+              <Route path="/admin/ordens" element={<Ordens />} />
+              <Route path="/admin/ordens/:id" element={<OrdemDetalhe />} />
+              <Route path="/admin/tarifarios" element={<Tarifarios />} />
+              <Route path="/admin/financeiro" element={<Financeiro />} />
+              <Route path="/admin/fechamento" element={<FechamentoFinanceiro />} />
+              <Route path="/admin/notificacoes" element={<Notificacoes />} />
+              <Route path="/admin/mapa" element={<MapaRota />} />
+              <Route path="/admin/usuarios" element={<AprovacaoUsuarios />} />
+              <Route path="/admin/profile" element={<Profile />} />
               
               {/* Compatibilidade de rotas antigas */}
               <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/empresas" element={<Navigate to="/admin/empresas" replace />} />
+              <Route path="/motoristas" element={<Navigate to="/admin/motoristas" replace />} />
+              <Route path="/veiculos" element={<Navigate to="/admin/veiculos" replace />} />
+              <Route path="/ordens" element={<Navigate to="/admin/ordens" replace />} />
+              <Route path="/tarifarios" element={<Navigate to="/admin/tarifarios" replace />} />
+              <Route path="/financeiro" element={<Navigate to="/admin/financeiro" replace />} />
+              <Route path="/fechamento" element={<Navigate to="/admin/fechamento" replace />} />
+              <Route path="/notificacoes" element={<Navigate to="/admin/notificacoes" replace />} />
+              <Route path="/mapa" element={<Navigate to="/admin/mapa" replace />} />
+              <Route path="/usuarios" element={<Navigate to="/admin/usuarios" replace />} />
+              <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
             </Route>
           </Route>
 

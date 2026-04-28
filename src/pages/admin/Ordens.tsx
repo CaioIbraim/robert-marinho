@@ -139,20 +139,25 @@ export const Ordens = () => {
       }
 
       // Salva paradas
-      if (ordemId && paradas.length > 0) {
-        // Remove paradas antigas em edição
-        if (editingId) await supabase.from('ordem_servico_paradas').delete().eq('ordem_id', ordemId);
-        // Insere novas paradas
-        const dataExec = data.data_execucao?.split('T')[0] || new Date().toISOString().split('T')[0];
-        await supabase.from('ordem_servico_paradas').insert(
-          paradas.filter(p => p.endereco_ponto).map(p => ({
-            ordem_id: ordemId,
-            endereco_ponto: p.endereco_ponto,
-            horario_previsto: p.horario_previsto ? `${dataExec}T${p.horario_previsto}:00` : null,
-            observacoes: p.observacoes || null,
-            ordem_parada: p.ordem_parada,
-          }))
-        );
+      if (ordemId) {
+        // Remove paradas antigas em edição SE houver um ID (garante limpeza)
+        if (editingId) {
+          await supabase.from('ordem_servico_paradas').delete().eq('ordem_id', ordemId);
+        }
+
+        // Insere novas paradas se houver
+        if (paradas.length > 0) {
+          const dataExec = data.data_execucao?.split('T')[0] || new Date().toISOString().split('T')[0];
+          await supabase.from('ordem_servico_paradas').insert(
+            paradas.filter(p => p.endereco_ponto).map(p => ({
+              ordem_id: ordemId,
+              endereco_ponto: p.endereco_ponto,
+              horario_previsto: p.horario_previsto ? `${dataExec}T${p.horario_previsto}:00` : null,
+              observacoes: p.observacoes || null,
+              ordem_parada: p.ordem_parada,
+            }))
+          );
+        }
       }
 
       setIsModalOpen(false);
@@ -339,6 +344,7 @@ export const Ordens = () => {
       Passageiro: o.passageiro || '',
       Voucher: o.voucher || '',
       Itinerario: `${o.origem} -> ${o.destino}`,
+      'Subrotas/Paradas': (o as any).paradas?.map((p: any) => p.endereco_ponto).join('; ') || '---',
       Horario_Inicio: formatDateTimeBR(o.horario_inicio),
       Horario_Fim: formatDateTimeBR(o.horario_fim),
       Motorista: o.motorista?.nome || '',
@@ -583,7 +589,7 @@ export const Ordens = () => {
                         </button>
                       )}
                       <button
-                        onClick={() => navigate(`/ordens/${ordem.id}`)}
+                        onClick={() => navigate(`/admin/ordens/${ordem.id}`)}
                         className="p-1.5 text-text-muted hover:text-cyan-400 transition-colors"
                         title="Ver Detalhes"
                       >
@@ -643,6 +649,7 @@ export const Ordens = () => {
         }}
         onSave={handleSaveOS}
         editingData={editingFormData}
+        editingId={editingId}
         motoristas={motoristas}
         empresas={empresas}
         veiculos={veiculos}

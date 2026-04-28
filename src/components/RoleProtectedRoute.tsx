@@ -45,7 +45,7 @@ export const RoleProtectedRoute = ({
         <h1 className="text-2xl font-bold text-white mb-2">Aguardando Aprovação</h1>
         <p className="text-zinc-500 max-w-sm">
           Seu cadastro foi recebido com sucesso. Um administrador revisará seu acesso em breve. 
-          Você receberá um e-mail ou mensagem assim que for liberado.
+          Você receberá uma notificação ou mensagem assim que for liberado.
         </p>
         <button 
           onClick={() => window.location.href = '/'}

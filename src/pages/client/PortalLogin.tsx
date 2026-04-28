@@ -62,24 +62,50 @@ export function PortalLogin() {
     setIsLoading(true);
     setError(null);
     try {
-      // 1. Criar usuário no Auth
+      // 1. Tentar criar usuário no Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
+        options: {
+          data: {
+            full_name: data.name,
+            role: 'cliente',
+          }
+        }
       });
 
-      if (authError) throw authError;
+      // Se der erro de rate limit, não exibimos o erro para o cliente, apenas seguimos como "solicitação recebida"
+      if (authError) {
+        if (authError.message.includes('rate limit exceeded')) {
+          console.warn("Email rate limit hit. Salvando apenas como lead na tabela empresas.");
+          
+          await supabase.from('empresas').insert({
+            razao_social: data.companyName,
+            nome_fantasia: data.name,
+            cnpj: data.cnpj,
+            email: data.email,
+            status: 'pendente'
+          });
+
+          setRegisteredData(data);
+          setMode('success');
+          return;
+        }
+        throw authError;
+      }
+
       if (!authData.user) throw new Error("Erro ao criar usuário.");
 
-      // 2. Criar perfil pendente
+      // 2. Criar ou atualizar perfil pendente
       const { error: perfilError } = await supabase
         .from('perfis')
-        .insert({
+        .upsert({
           id: authData.user.id,
           full_name: data.name,
           role: 'cliente',
           status: 'pendente',
           email: data.email,
+          aprovado_operador: false,
         });
 
       if (perfilError) throw perfilError;

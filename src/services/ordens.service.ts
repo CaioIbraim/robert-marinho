@@ -13,7 +13,8 @@ export const ordemService = {
           empresa:empresas(*),
           motorista:motoristas(*),
           veiculo:veiculos(*),
-          tarifario:tarifarios(*)
+          tarifario:tarifarios(*),
+          paradas:ordem_servico_paradas(*)
         `)
         .order('created_at', { ascending: false });
       
@@ -27,7 +28,8 @@ export const ordemService = {
           *,
           empresa:empresas(*),
           motorista:motoristas(*),
-          veiculo:veiculos(*)
+          veiculo:veiculos(*),
+          paradas:ordem_servico_paradas(*)
         `)
         .order('created_at', { ascending: false });
 
@@ -46,7 +48,8 @@ export const ordemService = {
         *,
         empresa:empresas(*),
         motorista:motoristas(*),
-        veiculo:veiculos(*)
+        veiculo:veiculos(*),
+        paradas:ordem_servico_paradas(*)
       `)
       .eq('id', id)
       .single();

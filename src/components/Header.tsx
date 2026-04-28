@@ -37,7 +37,7 @@ export const Header = ({ onMenuOpen }: { onMenuOpen: () => void }) => {
     try {
       await supabase.auth.signOut();
       showToast('Logout realizado com sucesso');
-      navigate('/login');
+      navigate('/admin/login');
     } catch (err) {
       console.error(err);
       showToast('Erro ao sair', 'error');
@@ -114,7 +114,7 @@ export const Header = ({ onMenuOpen }: { onMenuOpen: () => void }) => {
                 <button
                   onClick={() => {
                     setOpenNotif(false);
-                    navigate('/notificacoes');
+                    navigate('/admin/notificacoes');
                   }}
                   className="text-sm font-medium text-primary hover:underline"
                 >
@@ -162,7 +162,7 @@ export const Header = ({ onMenuOpen }: { onMenuOpen: () => void }) => {
               <button
                 onClick={() => {
                   setOpenUser(false);
-                  navigate('/profile');
+                  navigate('/admin/profile');
                 }}
                 className="w-full text-left px-4 py-3 text-sm hover:bg-border/30 transition"
               >

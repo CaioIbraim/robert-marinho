@@ -166,17 +166,17 @@ export const Dashboard = () => {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Link to="/ordens" className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm transition-colors shadow-sm">
+          <Link to="/admin/ordens" className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm transition-colors shadow-sm">
             <Plus size={16} />
             <span className="font-semibold">Nova Ordem</span>
           </Link>
 
-          <Link to="/motoristas" className="flex items-center gap-2 bg-surface border border-border hover:border-primary text-text px-4 py-2 rounded-lg text-sm transition-colors">
+          <Link to="/admin/motoristas" className="flex items-center gap-2 bg-surface border border-border hover:border-primary text-text px-4 py-2 rounded-lg text-sm transition-colors">
             <ListTodo size={16} />
             <span>Motoristas</span>
           </Link>
 
-          <Link to="/veiculos" className="flex items-center gap-2 bg-surface border border-border hover:border-primary text-text px-4 py-2 rounded-lg text-sm transition-colors">
+          <Link to="/admin/veiculos" className="flex items-center gap-2 bg-surface border border-border hover:border-primary text-text px-4 py-2 rounded-lg text-sm transition-colors">
             <RouteIcon size={16} />
             <span>Veículos</span>
           </Link>

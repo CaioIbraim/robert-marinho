@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, XCircle, Users, Eye, Loader2, Shield, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Users, Eye, Loader2, Shield, AlertTriangle, Key, Copy } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 import { showToast, showConfirm } from '../../utils/swal';
 
 type PerfilPendente = {
@@ -14,6 +15,11 @@ type PerfilPendente = {
   role: string | null;
   aprovado_operador: boolean;
   created_at: string;
+  // Campos extras para leads que ainda não tem perfil
+  tipo_lead?: 'empresa' | 'motorista';
+  razao_social?: string;
+  cpf?: string;
+  telefone?: string;
 };
 
 const WHATSAPP_ADMIN = '5521993306919';
@@ -39,60 +45,169 @@ export function AprovacaoUsuarios() {
   const queryClient = useQueryClient();
   const [selectedPerfil, setSelectedPerfil] = useState<PerfilPendente | null>(null);
   const [viewMode, setViewMode] = useState<'pendentes' | 'aprovados'>('pendentes');
+  const [lastGeneratedPassword, setLastGeneratedPassword] = useState<{ email: string; pass: string } | null>(null);
 
   const { data: perfis, isLoading } = useQuery({
     queryKey: ['perfis-aprovacao', viewMode],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Busca perfis pendentes
+      const { data: perfisData, error: perfisErr } = await supabase
         .from('perfis')
         .select('*')
-        .eq('aprovado_operador', viewMode === 'aprovados')
+        .eq('status', viewMode === 'aprovados' ? 'aprovado' : 'pendente')
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data as PerfilPendente[]) || [];
+
+      // 2. Busca leads de empresas pendentes
+      const { data: empresasData } = await supabase
+        .from('empresas')
+        .select('*')
+        .eq('status', 'pendente');
+
+      // 3. Busca leads de motoristas pendentes
+      const { data: motoristasData } = await supabase
+        .from('motoristas')
+        .select('*')
+        .eq('status', 'pendente');
+
+      if (perfisErr) throw perfisErr;
+
+      const unified: PerfilPendente[] = (perfisData as PerfilPendente[]) || [];
+
+      // Unifica leads de empresas
+      empresasData?.forEach(e => {
+        if (!unified.some(p => p.email === e.email)) {
+          unified.push({
+            id: e.id,
+            email: e.email,
+            full_name: e.nome_fantasia || e.razao_social,
+            nome: e.razao_social,
+            role: 'cliente',
+            aprovado_operador: false,
+            created_at: e.created_at,
+            tipo_lead: 'empresa',
+            telefone: e.telefone
+          });
+        }
+      });
+
+      // Unifica leads de motoristas
+      motoristasData?.forEach(m => {
+        if (!unified.some(p => p.email === m.email)) {
+          unified.push({
+            id: m.id,
+            email: m.email,
+            full_name: m.nome,
+            nome: m.nome,
+            role: 'motorista',
+            aprovado_operador: false,
+            created_at: m.created_at,
+            tipo_lead: 'motorista',
+            cpf: m.cpf,
+            telefone: m.telefone
+          });
+        }
+      });
+
+      return unified.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
   });
 
   const aprovaMutation = useMutation({
     mutationFn: async (perfil: PerfilPendente) => {
       const senha = gerarSenhaAleatoria();
+      let authUserId = perfil.id;
 
-      // 1. Atualiza perfil para aprovado
-      const { error } = await supabase
-        .from('perfis')
-        .update({ aprovado_operador: true })
-        .eq('id', perfil.id);
-      if (error) throw error;
+      // Se for um Lead (Pré-cadastro), precisamos criar a conta no Auth primeiro
+      if (perfil.tipo_lead) {
+        // Criamos um client temporário para não deslogar o admin
+        const tempClient = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_ANON_KEY,
+          { auth: { persistSession: false } }
+        );
 
-      // 2. Define senha temporária via Admin API (se tiver acesso)
-      // Neste contexto de cliente, usamos o link de redefinição de senha via email
-      await supabase.auth.resetPasswordForEmail(perfil.email || '', {
-        redirectTo: `${window.location.origin}/redefinir-senha`
-      });
+        const { data: authData, error: authErr } = await tempClient.auth.signUp({
+          email: perfil.email || '',
+          password: senha,
+          options: {
+            data: {
+              full_name: perfil.full_name || perfil.nome,
+              role: perfil.role,
+            }
+          }
+        });
 
-      // 3. Notificação interna
-      await supabase.from('notificacoes').insert({
-        user_id: perfil.id,
-        titulo: 'Acesso Liberado!',
-        mensagem: `Seu cadastro foi aprovado. Acesse ${window.location.origin}/portal/login e use o link enviado para o seu e-mail para definir sua senha.`,
-        tipo: 'success',
-        link: '/portal/login'
-      });
+        if (authErr) throw authErr;
+        if (!authData.user) throw new Error("Falha ao criar usuário no Auth.");
+        
+        authUserId = authData.user.id;
+
+        // Cria o registro na tabela perfis vinculado ao novo Auth User
+        const { error: perfilErr } = await supabase.from('perfis').insert({
+          id: authUserId,
+          email: perfil.email,
+          full_name: perfil.full_name || perfil.nome,
+          role: perfil.role,
+          status: 'aprovado',
+          aprovado_operador: true
+        });
+        if (perfilErr) throw perfilErr;
+
+        // Vincula o perfil ao registro original (empresa ou motorista)
+        if (perfil.tipo_lead === 'empresa') {
+          await supabase.from('empresas').update({ 
+            status: 'ativo',
+            // Se houver campo perfil_id ou similar em empresas (no schema não vi, mas pode existir)
+          }).eq('id', perfil.id);
+        } else if (perfil.tipo_lead === 'motorista') {
+          await supabase.from('motoristas').update({ 
+            status: 'ativo',
+            perfil_id: authUserId 
+          }).eq('id', perfil.id);
+        }
+      } else {
+        // Fluxo normal para quem já tem Perfil/Auth (pendente)
+        const { error } = await supabase
+          .from('perfis')
+          .update({ status: 'aprovado', aprovado_operador: true })
+          .eq('id', perfil.id);
+        if (error) throw error;
+      }
+
+      // 3. Notificação interna (se tivermos o ID do usuário)
+      if (authUserId) {
+        await supabase.from('notificacoes').insert({
+          user_id: authUserId,
+          titulo: 'Acesso Liberado!',
+          mensagem: `Seu cadastro foi aprovado! Sua senha temporária é: ${senha}`,
+          tipo: 'success',
+          link: '/portal/login'
+        });
+      }
 
       return { perfil, senha };
     },
-    onSuccess: ({ perfil }) => {
-      showToast(`Acesso de ${perfil.full_name || perfil.email} aprovado! E-mail de redefinição de senha enviado.`);
+    onSuccess: ({ perfil, senha }) => {
+      setLastGeneratedPassword({ email: perfil.email || '', pass: senha });
+      showToast(`Acesso de ${perfil.full_name || perfil.email} aprovado com sucesso!`);
       queryClient.invalidateQueries({ queryKey: ['perfis-aprovacao'] });
       setSelectedPerfil(null);
     },
-    onError: () => showToast('Erro ao aprovar usuário', 'error')
+    onError: (err: any) => {
+      console.error(err);
+      showToast(err.message || 'Erro ao aprovar usuário', 'error');
+    }
   });
 
   const rejeitaMutation = useMutation({
     mutationFn: async (perfil: PerfilPendente) => {
-      const { error } = await supabase.from('perfis').delete().eq('id', perfil.id);
-      if (error) throw error;
+      if (perfil.tipo_lead === 'empresa') {
+        await supabase.from('empresas').delete().eq('id', perfil.id);
+      } else if (perfil.tipo_lead === 'motorista') {
+        await supabase.from('motoristas').delete().eq('id', perfil.id);
+      } else {
+        await supabase.from('perfis').delete().eq('id', perfil.id);
+      }
     },
     onSuccess: () => {
       showToast('Cadastro rejeitado e removido.', 'error');
@@ -104,7 +219,7 @@ export function AprovacaoUsuarios() {
   const handleAprovar = async (perfil: PerfilPendente) => {
     const result = await showConfirm(
       'Aprovar acesso?',
-      `Confirma a aprovação de ${perfil.full_name || perfil.email}?\n\nUm e-mail de redefinição de senha será enviado automaticamente.`
+      `Confirma a aprovação de ${perfil.full_name || perfil.email}?\n\nUma conta será criada e uma senha temporária será gerada para o usuário.`
     );
     if (result.isConfirmed) aprovaMutation.mutate(perfil);
   };
@@ -146,6 +261,45 @@ export function AprovacaoUsuarios() {
           </div>
         )}
       </div>
+      
+      {/* Alerta de Senha Gerada */}
+      {lastGeneratedPassword && (
+        <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-6 animate-fade-in flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center text-green-500">
+              <Key className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-green-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Conta Criada com Sucesso</p>
+              <p className="text-white font-bold truncate">{lastGeneratedPassword.email}</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="bg-background/50 px-4 py-3 rounded-xl border border-border flex items-center gap-4">
+              <span className="text-text-muted text-[10px] font-bold uppercase whitespace-nowrap">Senha Temporária:</span>
+              <span className="text-white font-mono font-bold tracking-wider">{lastGeneratedPassword.pass}</span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(lastGeneratedPassword.pass);
+                  showToast('Senha copiada!', 'success');
+                }}
+                className="text-primary hover:text-red-500 transition-colors p-1"
+                title="Copiar Senha"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <button 
+              onClick={() => setLastGeneratedPassword(null)}
+              className="text-text-muted hover:text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 border border-border rounded-xl hover:bg-white/5 transition-all"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-surface p-1 rounded-xl w-fit">
@@ -185,6 +339,11 @@ export function AprovacaoUsuarios() {
                   {perfil.role && (
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${roleLabel[perfil.role]?.color || 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20'}`}>
                       {roleLabel[perfil.role]?.label || perfil.role}
+                    </span>
+                  )}
+                  {perfil.tipo_lead && (
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-yellow-500/20 bg-yellow-500/10 text-yellow-400">
+                      PRÉ-CADASTRO
                     </span>
                   )}
                 </div>

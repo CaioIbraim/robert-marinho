@@ -61,7 +61,7 @@ export const MotoristaDetalhe = () => {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/motoristas')} className="hover:bg-white/5">
+          <Button variant="ghost" onClick={() => navigate('/admin/motoristas')} className="hover:bg-white/5">
             <ArrowLeft size={18} />
           </Button>
           <div className="flex items-center gap-4">
@@ -221,7 +221,7 @@ export const MotoristaDetalhe = () => {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {ordens.map(os => (
-                        <tr key={os.id} className="hover:bg-border/20 transition-colors cursor-pointer" onClick={() => navigate(`/ordens/${os.id}`)}>
+                        <tr key={os.id} className="hover:bg-border/20 transition-colors cursor-pointer" onClick={() => navigate(`/admin/ordens/${os.id}`)}>
                           <td className="px-6 py-4 text-white font-medium">{formatDateBR(os.data_execucao)}</td>
                           <td className="px-6 py-4 text-primary font-mono font-bold">{os.numero_os || os.id.slice(0,8)}</td>
                           <td className="px-6 py-4 text-text-muted">{os.empresa?.razao_social}</td>

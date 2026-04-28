@@ -118,7 +118,7 @@ export const Financeiro = () => {
             titulo: 'Lançamento atualizado: PAGO',
             mensagem: `O recebimento de R$ ${data.valor} foi atualizado como PAGO.`,
             tipo: 'success',
-            link: '/financeiro'
+            link: '/admin/financeiro'
           });
         }
       } else {
@@ -128,7 +128,7 @@ export const Financeiro = () => {
           titulo: 'Novo Lançamento Financeiro',
           mensagem: `Um novo recebimento de R$ ${data.valor} foi registrado como ${data.status.toUpperCase()}.`,
           tipo: data.status === 'pago' ? 'success' : 'info',
-          link: '/financeiro'
+          link: '/admin/financeiro'
         });
       }
       showToast('Recebimento salvo com sucesso!');
@@ -187,7 +187,7 @@ export const Financeiro = () => {
       titulo: 'Recebimento Confirmado',
       mensagem: `A baixa do recebimento no valor de R$ ${currentRec?.valor || ''} foi realizada com sucesso.`,
       tipo: 'success',
-      link: '/financeiro'
+      link: '/admin/financeiro'
     });
 
     setGlobalLoading(false);

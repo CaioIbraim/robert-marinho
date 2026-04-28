@@ -7,7 +7,7 @@ import { formatDateBR, formatDateTimeBR } from '../../utils/date';
 import type { OrdemServico } from '../../types';
 import { ArrowLeft, FileText, MapPin, Navigation, Clock, Calendar, Users, Car, DollarSign, TrendingUp, Info } from 'lucide-react';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { generatePaymentReceipt } from '../../utils/exportRecibo';
+import { generatePaymentReceipt } from '../../utils/export';
 import QRCode from 'qrcode';
 import { differenceInMinutes, parseISO, format } from 'date-fns';
 import { showToast } from '../../utils/swal';
@@ -25,6 +25,7 @@ export const OrdemDetalhe = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
+  const [paradas, setParadas] = useState<any[]>([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -38,6 +39,24 @@ export const OrdemDetalhe = () => {
       try {
         const data = await ordemService.getById(id!);
         setOrdem(data);
+        if ((data as any).paradas) setParadas((data as any).paradas);
+        
+        // Verificação de cancelamento automático por atraso (> 30 min)
+        if (data.status === 'pendente') {
+          const scheduled = parseISO(data.data_execucao);
+          const now = new Date();
+          const delay = differenceInMinutes(now, scheduled);
+          
+          if (delay > 30) {
+            await ordemService.update(id!, { 
+              status: 'cancelado', 
+              observacoes_gerais: (data.observacoes_gerais || '') + '\n[SISTEMA] Cancelada automaticamente por atraso superior a 30 minutos no check-in.' 
+            });
+            showToast('Ordem cancelada automaticamente por atraso superior a 30 minutos.', 'error');
+            window.location.reload();
+            return;
+          }
+        }
         
         // Gerar QR Code PIX
         if (data) {
@@ -98,7 +117,10 @@ export const OrdemDetalhe = () => {
       
       if (nowRaw > scheduled) {
         waitTimeMinutes = differenceInMinutes(nowRaw, scheduled);
-        extraCharge = waitTimeMinutes * 0.1 * (ordem.valor_faturamento || 0);
+        // Comercial: 30 min de tolerância, depois R$ 100/hora (R$ 1.66 por minuto)
+        if (waitTimeMinutes > 30) {
+          extraCharge = (waitTimeMinutes - 30) * (100 / 60);
+        }
       }
 
       const total = (ordem.valor_faturamento || 0) + extraCharge;
@@ -111,8 +133,9 @@ export const OrdemDetalhe = () => {
             <p><b>⏰ Atual:</b> ${formatDateTimeBR(nowRaw)}</p>
             ${waitTimeMinutes > 0 ? `
               <div style="margin-top: 15px; padding: 10px; background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.2); border-radius: 8px;">
-                <p style="color: #f97316; font-weight: bold; margin-bottom: 5px;">⚠️ ATRASO DETECTADO: ${waitTimeMinutes} min</p>
-                <p><b>Adicional de Espera:</b> R$ ${extraCharge.toFixed(2)}</p>
+                <p style="color: #f97316; font-weight: bold; margin-bottom: 5px;">⚠️ TEMPO DE ESPERA: ${waitTimeMinutes} min</p>
+                <p><b>Tolerância:</b> 30 min</p>
+                <p><b>Adicional (R$ 100/h):</b> R$ ${extraCharge.toFixed(2)}</p>
                 <p><b>Novo Total:</b> R$ ${total.toFixed(2)}</p>
               </div>
             ` : '<p style="color: #22c55e; margin-top: 10px;">✅ No horário esperado.</p>'}
@@ -144,7 +167,7 @@ export const OrdemDetalhe = () => {
           titulo: `Adicional de Espera - OS #${ordem.numero_os || id?.slice(0,8)}`,
           mensagem: `Atraso de ${waitTimeMinutes} min. Adicional: R$ ${extraCharge.toFixed(2)}. Novo total: R$ ${total.toFixed(2)}.`,
           tipo: 'info',
-          link: `/ordens/${id}`
+          link: `/admin/ordens/${id}`
         });
       }
 
@@ -199,7 +222,7 @@ export const OrdemDetalhe = () => {
 
   const handleGenerateReceipt = async () => {
     if (!ordem) return;
-    await generatePaymentReceipt(ordem, ordem.empresa);
+    await generatePaymentReceipt(ordem, ordem.empresa, paradas);
   };
 
   if (loading) return <div className="p-6">Carregando...</div>;
@@ -279,6 +302,28 @@ export const OrdemDetalhe = () => {
                     <p className="text-lg font-medium text-white">{ordem.origem}</p>
                   </div>
                 </div>
+
+                {/* Paradas Intermediárias */}
+                {paradas.length > 0 && (
+                  <div className="space-y-4 relative">
+                    <div className="absolute left-[4px] top-0 bottom-0 w-0.5 border-l-2 border-dashed border-border/50" />
+                    {paradas.map((p, idx) => (
+                      <div key={p.id} className="flex items-start gap-3 relative z-10">
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 mt-1.5 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-blue-400">Parada {idx + 1}</p>
+                          <p className="text-base font-medium text-white">{p.endereco_ponto}</p>
+                          {p.horario_previsto && (
+                            <p className="text-[10px] text-text-muted mt-0.5">Previsto: {formatDateTimeBR(p.horario_previsto).split(' ')[1]}</p>
+                          )}
+                          {p.observacoes && (
+                            <p className="text-[10px] text-text-muted italic mt-0.5">"{p.observacoes}"</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 
                 <div className="absolute left-[4px] top-[24px] bottom-[24px] w-0.5 border-l-2 border-dashed border-border/50" />
                 
@@ -443,12 +488,21 @@ export const OrdemDetalhe = () => {
                    let displayTotal = totalInDB;
 
                    if (ordem.horario_inicio) {
-                      // Já foi gravado no banco incluindo o extra, extraímos a base para o recibo/tela
-                      baseValue = totalInDB / (1 + (wait * 0.1));
-                      extraValue = totalInDB - baseValue;
+                      // Já foi gravado no banco incluindo o extra
+                      // Re-calculamos a base para exibição baseada na regra de 30m
+                      if (wait > 30) {
+                        extraValue = (wait - 30) * (100 / 60);
+                        baseValue = totalInDB - extraValue;
+                      } else {
+                        baseValue = totalInDB;
+                        extraValue = 0;
+                      }
+                      displayTotal = totalInDB;
                    } else {
                       // Ainda não gravou o extra, o totalInDB é a base
-                      extraValue = wait * 0.1 * totalInDB;
+                      if (wait > 30) {
+                        extraValue = (wait - 30) * (100 / 60);
+                      }
                       displayTotal = totalInDB + extraValue;
                    }
 
@@ -528,7 +582,7 @@ export const OrdemDetalhe = () => {
               </div>
 
               <div className="pt-1">
-                 <Button variant="ghost" className="w-full text-[10px] uppercase font-black tracking-widest border border-border hover:bg-white/5" onClick={() => navigate(`/motoristas/${ordem.motorista_id}`)}>
+                 <Button variant="ghost" className="w-full text-[10px] uppercase font-black tracking-widest border border-border hover:bg-white/5" onClick={() => navigate(`/admin/motoristas/${ordem.motorista_id}`)}>
                     Ver Perfil do Motorista
                  </Button>
               </div>
@@ -562,7 +616,7 @@ export const OrdemDetalhe = () => {
                   <p className="text-xs text-text-muted mt-1 opacity-70">CNPJ: {ordem.empresa?.cnpj}</p>
                </div>
                <div className="pt-2">
-                  <Button variant="ghost" className="w-full text-[10px] uppercase font-black tracking-widest border border-border hover:bg-white/5" onClick={() => navigate(`/empresas/${ordem.empresa_id}`)}>
+                  <Button variant="ghost" className="w-full text-[10px] uppercase font-black tracking-widest border border-border hover:bg-white/5" onClick={() => navigate(`/admin/empresas/${ordem.empresa_id}`)}>
                     Ver Perfil do Cliente
                   </Button>
                </div>
