@@ -16,6 +16,7 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 // Autenticação
 import { AdminLogin } from "./pages/auth/AdminLogin";
 import { MotoristaLogin } from "./pages/auth/MotoristaLogin";
+import { OperadorLogin } from "./pages/auth/OperadorLogin";
 
 // Motorista
 import MotoristaDashboard from "./pages/driver/MotoristaDashboard";
@@ -37,6 +38,15 @@ import { MotoristaDetalhe } from './pages/admin/MotoristaDetalhe';
 import { AprovacaoUsuarios } from './pages/admin/AprovacaoUsuarios';
 import { Profile } from './pages/admin/Profile';
 
+
+
+// Operador Pages
+import { OperadorDashboard } from "./pages/operador/Dashboard";
+import { OperadorOrdens } from "./pages/operador/Ordens";
+import { OperadorOrdemDetalhe } from './pages/operador/OrdemDetalhe';
+import { OperadorProfile } from './pages/operador/Profile';
+
+
 function App() {
   return (
     <BrowserRouter>
@@ -57,6 +67,7 @@ function App() {
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/portal/login" element={<PortalLogin />} />
           <Route path="/motorista/login" element={<MotoristaLogin />} />
+          <Route path="/operador/login" element={<OperadorLogin />} />
 
           {/* ===================== */}
           {/* Portal do Cliente      */}
@@ -75,7 +86,7 @@ function App() {
           {/* ===================== */}
           {/* Painel Administrativo */}
           {/* ===================== */}
-          <Route element={<RoleProtectedRoute allowedRoles={['admin', 'operador']} redirectPath="/admin/login" />}>
+          <Route element={<RoleProtectedRoute allowedRoles={['admin']} redirectPath="/admin/login" />}>
             <Route element={<DashboardLayout />}>
               <Route path="/admin/dashboard" element={<Dashboard />} />
               <Route path="/admin/empresas" element={<Empresas />} />
@@ -106,6 +117,19 @@ function App() {
               <Route path="/mapa" element={<Navigate to="/admin/mapa" replace />} />
               <Route path="/usuarios" element={<Navigate to="/admin/usuarios" replace />} />
               <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
+            </Route>
+          </Route>
+
+
+          {/* ===================== */}
+          {/* Painel Operador */}
+          {/* ===================== */}
+          <Route element={<RoleProtectedRoute allowedRoles={['operador']} redirectPath="/operador/login" />}>
+            <Route element={<DashboardLayout />}>
+              <Route path="/operador/dashboard" element={<OperadorDashboard />} />
+              <Route path="/operador/ordens" element={<OperadorOrdens />} />
+              <Route path="/operador/ordens/:id" element={<OperadorOrdemDetalhe />} />
+              <Route path="/operador/profile" element={<OperadorProfile />} />
             </Route>
           </Route>
 

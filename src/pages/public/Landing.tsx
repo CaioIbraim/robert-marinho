@@ -94,10 +94,11 @@ export default function Landing() {
                       <p className="text-[10px] text-zinc-500">Painel operacional</p>
                     </div>
                   </Link>
-                  <Link to="/admin/login" className="flex items-center gap-4 p-4 rounded-xl hover:bg-white/5 transition-colors group/item mt-1 pt-1 border-t border-white/5">
-                    <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500">A</div>
+                  <Link to="/operador/login" className="flex items-center gap-4 p-4 rounded-xl hover:bg-white/5 transition-colors group/item mt-1 pt-1 border-t border-white/5">
+                    <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500">O</div>
                     <div>
-                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Administrativo</p>
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Operador</p>
+                      <p className="text-[10px] text-zinc-500">Painel operacional</p>
                     </div>
                   </Link>
                 </div>

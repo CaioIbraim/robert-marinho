@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Sidebar } from '../components/Sidebar';
+//import { Sidebar } from '../components/Sidebar';
+import { OperadorSidebar } from '../components/OperadorSidebar';
 import { Header } from '../components/Header';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -35,7 +36,7 @@ export const DashboardLayout = () => {
 
   return (
     <div className="flex min-h-screen bg-background text-text">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <OperadorSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuOpen={() => setIsSidebarOpen(true)} />
