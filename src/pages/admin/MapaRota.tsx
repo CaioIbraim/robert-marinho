@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { supabase } from '../lib/supabaseClient';
-import { Card } from '../components/ui/Card';
+import { supabase } from '../../lib/supabaseClient';
+import { Card } from '../../components/ui/Card';
 import { MapPin, Navigation, Package, Truck, Route } from 'lucide-react';
 
 // Fix leaflet default marker icons

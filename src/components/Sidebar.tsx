@@ -12,8 +12,11 @@ import {
   FaDollarSign,
   FaBell,
   FaMap,
-  FaTag
+  FaTag,
+  FaClipboardCheck,
+  FaPlusCircle
 } from 'react-icons/fa';
+
 
 import type { IconType } from 'react-icons';
 
@@ -58,7 +61,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login');
+    navigate('/admin/login');
   };
 
   return (
@@ -107,18 +110,18 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-            <SidebarItem to="/dashboard" icon={FaChartBar} label="Dashboard" onClick={onClose} />
-            <SidebarItem to="/empresas" icon={FaBuilding} label="Empresas" onClick={onClose} />
-            <SidebarItem to="/motoristas" icon={FaUsers} label="Motoristas" onClick={onClose} />
-            <SidebarItem to="/veiculos" icon={FaTruck} label="Veículos" onClick={onClose} />
-            <SidebarItem to="/ordens" icon={FaFileAlt} label="Ordens de Serviço" onClick={onClose} />
-            <SidebarItem to="/tarifarios" icon={FaTag} label="Tabela de Tarifas" onClick={onClose} />
-            <SidebarItem to="/financeiro" icon={FaDollarSign} label="Financeiro" onClick={onClose} />
-            <SidebarItem to="/notificacoes" icon={FaBell} label="Notificações" onClick={onClose} />
-            <SidebarItem to="/mapa" icon={FaMap} label="Mapa de Rotas" onClick={onClose} />
-            {/* 
-            <SidebarItem to="/usuarios" icon={FaPlusCircle} label="Usuários" onClick={onClose} />
-            */}
+            <SidebarItem to="/admin/dashboard" icon={FaChartBar} label="Dashboard" onClick={onClose} />
+            <SidebarItem to="/admin/empresas" icon={FaBuilding} label="Empresas" onClick={onClose} />
+            <SidebarItem to="/admin/motoristas" icon={FaUsers} label="Motoristas" onClick={onClose} />
+            <SidebarItem to="/admin/veiculos" icon={FaTruck} label="Veículos" onClick={onClose} />
+            <SidebarItem to="/admin/ordens" icon={FaFileAlt} label="Ordens de Serviço" onClick={onClose} />
+            <SidebarItem to="/admin/tarifarios" icon={FaTag} label="Tabela de Tarifas" onClick={onClose} />
+            <SidebarItem to="/admin/financeiro" icon={FaDollarSign} label="Financeiro" onClick={onClose} />
+            <SidebarItem to="/admin/fechamento" icon={FaClipboardCheck} label="Fechamento OS" onClick={onClose} />
+
+            <SidebarItem to="/admin/notificacoes" icon={FaBell} label="Notificações" onClick={onClose} />
+            <SidebarItem to="/admin/mapa" icon={FaMap} label="Mapa de Rotas" onClick={onClose} />
+            <SidebarItem to="/admin/usuarios" icon={FaPlusCircle} label="Aprovação de Acessos" onClick={onClose} />
           </nav>
 
           {/* Footer */}

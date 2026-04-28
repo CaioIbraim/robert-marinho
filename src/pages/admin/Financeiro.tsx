@@ -3,17 +3,17 @@ import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, DollarSign, CheckCircle, Download, FileText, AlertTriangle, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
-import { notificationService } from '../services/notifications.service';
-import { useLoadingStore } from '../stores/useLoadingStore';
-import { showToast, showConfirm } from '../utils/swal';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card } from '../components/ui/Card';
-import { FormDatePicker } from '../components/ui/FormDatePicker';
-import { formatDateBR } from '../utils/date';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { exportToExcel, exportToPDF } from '../utils/export';
+import { supabase } from '../../lib/supabaseClient';
+import { notificationService } from '../../services/notifications.service';
+import { useLoadingStore } from '../../stores/useLoadingStore';
+import { showToast, showConfirm } from '../../utils/swal';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Card } from '../../components/ui/Card';
+import { FormDatePicker } from '../../components/ui/FormDatePicker';
+import { formatDateBR } from '../../utils/date';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { exportToExcel, exportToPDF } from '../../utils/export';
 import { z } from 'zod';
 
 const recebimentoSchema = z.object({
@@ -118,7 +118,7 @@ export const Financeiro = () => {
             titulo: 'Lançamento atualizado: PAGO',
             mensagem: `O recebimento de R$ ${data.valor} foi atualizado como PAGO.`,
             tipo: 'success',
-            link: '/financeiro'
+            link: '/admin/financeiro'
           });
         }
       } else {
@@ -128,7 +128,7 @@ export const Financeiro = () => {
           titulo: 'Novo Lançamento Financeiro',
           mensagem: `Um novo recebimento de R$ ${data.valor} foi registrado como ${data.status.toUpperCase()}.`,
           tipo: data.status === 'pago' ? 'success' : 'info',
-          link: '/financeiro'
+          link: '/admin/financeiro'
         });
       }
       showToast('Recebimento salvo com sucesso!');
@@ -187,7 +187,7 @@ export const Financeiro = () => {
       titulo: 'Recebimento Confirmado',
       mensagem: `A baixa do recebimento no valor de R$ ${currentRec?.valor || ''} foi realizada com sucesso.`,
       tipo: 'success',
-      link: '/financeiro'
+      link: '/admin/financeiro'
     });
 
     setGlobalLoading(false);
