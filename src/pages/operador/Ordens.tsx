@@ -589,7 +589,7 @@ export const OperadorOrdens = () => {
                         </button>
                       )}
                       <button
-                        onClick={() => navigate(`/admin/ordens/${ordem.id}`)}
+                        onClick={() => navigate(`/operador/ordens/${ordem.id}`)}
                         className="p-1.5 text-text-muted hover:text-cyan-400 transition-colors"
                         title="Ver Detalhes"
                       >

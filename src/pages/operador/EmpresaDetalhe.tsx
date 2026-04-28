@@ -67,7 +67,7 @@ export const EmpresaDetalhe = () => {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/admin/empresas')} className="hover:bg-white/5">
+          <Button variant="ghost" onClick={() => navigate('/operador/empresas')} className="hover:bg-white/5">
             <ArrowLeft size={18} />
           </Button>
           <div className="flex items-center gap-4">
@@ -198,7 +198,7 @@ export const EmpresaDetalhe = () => {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {ordens.map(os => (
-                        <tr key={os.id} className="hover:bg-border/20 transition-colors cursor-pointer" onClick={() => navigate(`/admin/ordens/${os.id}`)}>
+                        <tr key={os.id} className="hover:bg-border/20 transition-colors cursor-pointer" onClick={() => navigate(`/operador/ordens/${os.id}`)}>
                           <td className="px-6 py-4 text-white font-medium">{formatDateBR(os.data_execucao)}</td>
                           <td className="px-6 py-4 text-primary font-mono font-bold">{os.numero_os || os.id.slice(0,8)}</td>
                           <td className="px-6 py-4">
@@ -250,7 +250,7 @@ export const EmpresaDetalhe = () => {
                   ) : (
                     <div className="p-12 border-2 border-dashed border-border rounded-3xl w-full max-w-md flex flex-col items-center">
                        <Search size={32} className="text-text-muted mb-4 opacity-50" />
-                       <p className="text-sm text-text-muted font-medium mb-1">Nenhum administrador vinculado</p>
+                       <p className="text-sm text-text-muted font-medium mb-1">Nenhum operadoristrador vinculado</p>
                        <p className="text-[10px] text-zinc-500 uppercase font-black">Aguardando convite de acesso</p>
                     </div>
                   )}

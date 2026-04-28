@@ -241,7 +241,7 @@ export const Motoristas = () => {
                   <td className="px-6 py-4 text-text-muted text-xs">{motorista.pix_key || '—'}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                       <button onClick={() => navigate(`/admin/motoristas/${motorista.id}`)} className="p-1.5 text-text-muted hover:text-white transition-colors" title="Ver Perfil">
+                       <button onClick={() => navigate(`/operador/motoristas/${motorista.id}`)} className="p-1.5 text-text-muted hover:text-white transition-colors" title="Ver Perfil">
                         <Eye size={18} />
                       </button>
                       <button onClick={() => handleEdit(motorista)} className="p-1.5 text-text-muted hover:text-primary transition-colors" title="Editar">

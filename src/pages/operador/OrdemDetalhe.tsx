@@ -41,16 +41,16 @@ export const OperadorOrdemDetalhe = () => {
         setOrdem(data);
         if ((data as any).paradas) setParadas((data as any).paradas);
         
-        // Verificação de cancelamento automático por atraso (> 30 min)
+        // Verificação de cancelamento automático por atraso (> 60 min)
         if (data.status === 'pendente') {
           const scheduled = parseISO(data.data_execucao);
           const now = new Date();
           const delay = differenceInMinutes(now, scheduled);
           
-          if (delay > 30) {
+          if (delay > 60) {
             await ordemService.update(id!, { 
               status: 'cancelado', 
-              observacoes_gerais: (data.observacoes_gerais || '') + '\n[SISTEMA] Cancelada automaticamente por atraso superior a 30 minutos no check-in.' 
+              observacoes_gerais: (data.observacoes_gerais || '') + '\n[SISTEMA] Cancelada automaticamente por atraso superior a 60 minutos no check-in.' 
             });
             showToast('Ordem cancelada automaticamente por atraso superior a 30 minutos.', 'error');
             window.location.reload();

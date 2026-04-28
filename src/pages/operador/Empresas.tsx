@@ -186,7 +186,7 @@ export const Empresas = () => {
                   <td className="px-6 py-4 text-text-muted">{empresa.telefone}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => navigate(`/admin/empresas/${empresa.id}`)} className="p-1.5 text-text-muted hover:text-white transition-colors" title="Ver Perfil">
+                      <button onClick={() => navigate(`/operador/empresas/${empresa.id}`)} className="p-1.5 text-text-muted hover:text-white transition-colors" title="Ver Perfil">
                         <Eye size={18} />
                       </button>
                       <button onClick={() => handleEdit(empresa)} className="p-1.5 text-text-muted hover:text-primary transition-colors" title="Editar">
