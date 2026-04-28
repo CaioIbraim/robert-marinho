@@ -3,16 +3,16 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { empresaSchema } from '../schemas';
-import type { EmpresaFormData } from '../schemas';
-import { empresaService } from '../services/empresas.service';
-import type { Empresa } from '../types';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card } from '../components/ui/Card';
-import { exportToExcel, exportToPDF } from '../utils/export';
-import { useLoadingStore } from '../stores/useLoadingStore';
-import { showToast, showConfirm } from '../utils/swal';
+import { empresaSchema } from '../../schemas';
+import type { EmpresaFormData } from '../../schemas';
+import { empresaService } from '../../services/empresas.service';
+import type { Empresa } from '../../types';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Card } from '../../components/ui/Card';
+import { exportToExcel, exportToPDF } from '../../utils/export';
+import { useLoadingStore } from '../../stores/useLoadingStore';
+import { showToast, showConfirm } from '../../utils/swal';
 
 export const Empresas = () => {
   const navigate = useNavigate();

@@ -1,21 +1,21 @@
 import { FaFileAlt, FaUsers, FaTruck, FaDollarSign } from 'react-icons/fa';
-import { Card } from '../components/ui/Card';
-import { useDashboard } from '../hooks/useDashboard';
-import { useComparativo } from '../hooks/useComparativo';
-import { useRealtimeDashboard } from '../hooks/useRealtimeDashboard';
-import { FaturamentoChart } from '../components/FaturamentoChart';
-import { OrdensRecentes } from '../components/OrdensRecentes';
-import { OrdensPendentes } from '../components/OrdensPendentes';
+import { Card } from '../../components/ui/Card';
+import { useDashboard } from '../../hooks/useDashboard';
+import { useComparativo } from '../../hooks/useComparativo';
+import { useRealtimeDashboard } from '../../hooks/useRealtimeDashboard';
+import { FaturamentoChart } from '../../components/FaturamentoChart';
+import { OrdensRecentes } from '../../components/OrdensRecentes';
+import { OrdensPendentes } from '../../components/OrdensPendentes';
 import { Link } from 'react-router-dom';
 import { Plus, ListTodo, Route as RouteIcon, Calendar} from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { empresaService } from '../services/empresas.service';
-import { motoristaService } from '../services/motoristas.service';
-import { veiculoService } from '../services/veiculos.service';
+import { empresaService } from '../../services/empresas.service';
+import { motoristaService } from '../../services/motoristas.service';
+import { veiculoService } from '../../services/veiculos.service';
 import { format, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import '../styles/datepicker-custom.css';
+import '../../styles/datepicker-custom.css';
 
 import type { IconType } from 'react-icons';
 import type {
@@ -25,7 +25,7 @@ import type {
   DashboardFilters,
   DashboardData,
   ComparativoData
-} from '../types/dashboard';
+} from '../../types/dashboard';
 
 /* =========================
    STAT CARD
@@ -284,7 +284,16 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
         <StatCard
-          title="Ordens Hoje"
+          title={(() => {
+            const hoje = format(new Date(), 'yyyy-MM-dd');
+            const start = filters.startDate;
+            const end = filters.endDate;
+            if (!start && !end) return 'Ordens';
+            if (start === end && start === hoje) return 'Ordens Hoje';
+            const s = start ? format(parseISO(start + 'T00:00:00'), 'dd/MM') : '?';
+            const e = end ? format(parseISO(end + 'T00:00:00'), 'dd/MM') : '?';
+            return `Ordens ${s} - ${e}`;
+          })()}
           value={data?.ordens}
           icon={FaFileAlt}
           trend={comparativo ? (data?.ordens || 0) - comparativo.ontem : 0}

@@ -1,0 +1,63 @@
+Aqui está o levantamento consolidado e estruturado para o seu Documento de Requisitos de Produto (PRD). Este guia foi organizado para que tanto a equipe de Front-end quanto a de Back-end tenham uma visão clara das dependências e regras de negócio.
+
+🚛 Sistema de Gestão Logística e Acessos: Guia de Implementação
+1. Arquitetura de Acesso (Auth & Perfis)
+O sistema utiliza o Supabase Auth para autenticação e uma tabela espelho public.perfis para regras de negócio e permissões.
+
+1.1 Fluxo de Cadastro e "Shadow Profile"
+Ação: Cadastro via supabase.auth.signUp.
+Back-end (Trigger): Gatilho automático no banco cria o registro em public.perfis com aprovado_operador = false e role = NULL.
+Front-end (Middleware): Bloqueio de acesso a qualquer rota interna se aprovado_operador for false. Redirecionar para /aguardando-aprovacao.
+1.2 Gestão de Aprovações (Módulo Operador)
+Tela de Análise: Listagem de perfis onde aprovado_operador = false.
+Vínculo Inteligente:
+Motoristas: Ao aprovar, o sistema deve verificar se já existe um registro na tabela motoristas (via CPF/Nome). Se sim, faz o UPDATE do perfil_id. Se não, cria um novo registro.
+Clientes: Ao aprovar, o operador deve obrigatoriamente selecionar uma empresa_id para vincular ao cliente.
+2. Operações de Frota e Custos
+Foco em transformar o banco de dados em um motor de cálculo de lucratividade e manutenção.
+
+2.1 Gestão de Veículos (Tela 2.1)
+Controle de KM: Exibição de alertas (Verde/Amarelo/Vermelho) comparando km_atual com km_proxima_revisao.
+Média Real: Campo read-only alimentado pelo histórico de abastecimentos.
+2.2 Abastecimento e Manutenção (Telas 2.2 e 2.3)
+Abastecimento: Registro obrigatório de KM e Litros. Deve validar se o KM inserido é maior que o KM atual do veículo.
+Manutenção: Registro de TCO (Custo Total de Propriedade), classificando entre Preventiva e Corretiva.
+3. Logística e Execução (Ordens de Serviço)
+3.1 Abertura de OS (Tela 3.2)
+Tarifário Integrado: Ao selecionar um trajeto, popular automaticamente os custos previstos e o valor de venda.
+Paradas Dinâmicas: Interface que permite adicionar 
+N
+ pontos de parada, gerando registros na tabela ordem_servico_paradas.
+Geolocalização: Captura automática de coordenadas (Lat/Lng) para os pontos de origem, destino e paradas.
+3.2 Visão do Motorista (Tela 3.3)
+Execução: Botão de "Check-in" em cada parada que atualiza horario_realizado e realizada = true.
+Restrição: O motorista só visualiza OSs vinculadas ao seu perfil_id.
+4. Fechamento Financeiro e Auditoria
+4.1 Conciliação Financeira (Tela 4.1)
+Detalhamento Pós-Viagem: Inserção de custos reais (Pedágio, Estacionamento, Horas Extras).
+Cálculo Automático: O sistema deve calcular o km_total_rodado e o valor_total_hora_parada em tempo real na tela.
+Status de Conferência: Campo conferida_financeiro para travar a OS após a auditoria.
+4.2 Central de Auditoria (Tela 4.2)
+Rastreabilidade: Visualização dos logs na tabela logs_auditoria.
+Diferencial Técnico: O componente de "Ver Detalhes" deve formatar o jsonb para destacar o que mudou (Ex: Campo 'Status' mudou de 'Pendente' para 'Concluído').
+🚀 Checklist de Lançamento para o Desenvolvedor
+[ ] Banco de Dados (SQL)
+
+Rodar migração de vínculos (perfil_id em Motoristas e Clientes).
+
+Criar/Validar Trigger: on_auth_user_created.
+
+Implementar RLS (Row Level Security) para que Clientes vejam apenas dados de sua empresa_id.
+[ ] Front-end (React/Next.js)
+
+Implementar AuthGuard para checagem de aprovado_operador.
+
+Desenvolver Componente de Mapa para plotagem de rotas e paradas.
+
+Criar lógica de cálculo dinâmico no formulário de Fechamento Financeiro.
+[ ] Qualidade e Testes
+
+Testar fluxo de "Motorista Legado": Cadastrar perfil novo para um motorista que já existe no banco e validar se o vínculo ocorreu sem duplicar o registro.
+
+Validar se um Cliente aprovado consegue ver apenas as OSs da sua empresa vinculada.
+Consideração Final: Este PRD foca na integridade. A separação entre o usuário (quem loga) e a entidade (quem trabalha/solicita) garante que seu sistema suporte tanto funcionários internos quanto terceiros e clientes externos com total segurança.

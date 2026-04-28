@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motoristaService } from '../services/motoristas.service';
-import { ordemService } from '../services/ordens.service';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/StatusBadge';
+import { motoristaService } from '../../services/motoristas.service';
+import { ordemService } from '../../services/ordens.service';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 import { 
   ArrowLeft, 
   User, 
@@ -18,8 +18,8 @@ import {
   DollarSign,
   Briefcase
 } from 'lucide-react';
-import { formatDateBR } from '../utils/date';
-import type { Motorista, OrdemServico } from '../types';
+import { formatDateBR } from '../../utils/date';
+import type { Motorista, OrdemServico } from '../../types';
 
 export const MotoristaDetalhe = () => {
   const { id } = useParams();

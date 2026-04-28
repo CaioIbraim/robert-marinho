@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ordemService } from '../services/ordens.service';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { formatDateBR, formatDateTimeBR } from '../utils/date';
-import type { OrdemServico } from '../types';
+import { ordemService } from '../../services/ordens.service';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { formatDateBR, formatDateTimeBR } from '../../utils/date';
+import type { OrdemServico } from '../../types';
 import { ArrowLeft, FileText, MapPin, Navigation, Clock, Calendar, Users, Car, DollarSign, TrendingUp, Info } from 'lucide-react';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { generatePaymentReceipt } from '../utils/exportRecibo';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { generatePaymentReceipt } from '../../utils/exportRecibo';
 import QRCode from 'qrcode';
 import { differenceInMinutes, parseISO, format } from 'date-fns';
-import { showToast } from '../utils/swal';
-import { notificationService } from '../services/notifications.service';
+import { showToast } from '../../utils/swal';
+import { notificationService } from '../../services/notifications.service';
 import Swal from 'sweetalert2';
 
 export const OrdemDetalhe = () => {

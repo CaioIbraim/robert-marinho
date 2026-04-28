@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import imageCompression from 'browser-image-compression';
-import { supabase } from '../lib/supabaseClient';
-import { useAuthStore } from '../stores/authStore';
+import { supabase } from '../../lib/supabaseClient';
+import { useAuthStore } from '../../stores/authStore';
 
 interface CroppedAreaPixels {
   width: number;

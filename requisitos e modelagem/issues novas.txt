@@ -1,0 +1,25 @@
+Analisar toda nova modelagem do banco de dados apresentada no arquivo banco de dados.txt e executar o seguinte:
+
+Finalizar implementação do painel do motorista
+
+Finalizar implementação do painel do cliente.
+
+Definir permissões de cada usuário na plataforma
+
+Criar tela de configurações financeiras de acordo com novos dados da tabela de ordem de Serviço (Fechamento da ordem de serviço)
+
+Corrigir dados do filtro do dashboard (Atualizar dinâmicamente o texto que mostra o total de ordens no dia, caso o valor seja o somatório dentro de um intervalo mostrar o intervalo no lugar da palavra hoje)
+
+Apresentação detalhada das rotas no momento de cadastro de ordem de serviço de acordo com a imagem 01 da pasta de requisitos e modelagem / imagens
+
+Restringir apresentação do front end com apenas a hora para Check-in e Check-out no formulário de cadastro de ordens de serviço
+
+Realizar uma auditoria no código para encontrar inconsistências e possíveis bugs. 
+
+Melhorar a disponibilidade dos links de acesso aos paineis para cada tipo de usuário
+
+Executar as instruções do arquivo issue final auditoria.txt
+
+Criar um manual de utilizização do sistema. 
+
+

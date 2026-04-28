@@ -3,17 +3,17 @@ import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, DollarSign, CheckCircle, Download, FileText, AlertTriangle, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
-import { notificationService } from '../services/notifications.service';
-import { useLoadingStore } from '../stores/useLoadingStore';
-import { showToast, showConfirm } from '../utils/swal';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card } from '../components/ui/Card';
-import { FormDatePicker } from '../components/ui/FormDatePicker';
-import { formatDateBR } from '../utils/date';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { exportToExcel, exportToPDF } from '../utils/export';
+import { supabase } from '../../lib/supabaseClient';
+import { notificationService } from '../../services/notifications.service';
+import { useLoadingStore } from '../../stores/useLoadingStore';
+import { showToast, showConfirm } from '../../utils/swal';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Card } from '../../components/ui/Card';
+import { FormDatePicker } from '../../components/ui/FormDatePicker';
+import { formatDateBR } from '../../utils/date';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { exportToExcel, exportToPDF } from '../../utils/export';
 import { z } from 'zod';
 
 const recebimentoSchema = z.object({

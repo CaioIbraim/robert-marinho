@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { notificationService } from '../services/notifications.service';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
+import { notificationService } from '../../services/notifications.service';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
 import { 
   Bell, 
   Check, 

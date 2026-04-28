@@ -3,7 +3,9 @@ export type UserProfile = {
   email: string;
   full_name?: string;
   avatar_url?: string;
-  role: 'admin' | 'operator' | 'driver';
+  role: 'admin' | 'operador' | 'motorista' | 'cliente';
+  empresa_id?: string;
+  status?: 'pendente' | 'aprovado' | 'bloqueado';
 };
 
 export type Empresa = {
@@ -60,6 +62,7 @@ export type OrdemServico = {
   id: string;
   numero_os?: string;
   empresa_id: string;
+  cliente_final_id?: string;
   motorista_id: string;
   veiculo_id: string;
   tarifario_id?: string;
@@ -75,13 +78,54 @@ export type OrdemServico = {
   status: 'pendente' | 'em_andamento' | 'concluido' | 'cancelado';
   financeiro_status: 'pendente' | 'pago';
   created_at: string;
-  
+
+  // Identificação e Aprovação
+  atividade_motivo?: string;
+  divisao_departamento?: string;
+  autorizado_por?: string;
+  centro_custo_cliente?: string;
+  numero_requisicao_bu?: string;
+  forma_faturamento?: string;
+  numero_cte?: string;
+  numero_nfe?: string;
+
+  // Geolocalização
+  origem_latitude?: number;
+  origem_longitude?: number;
+  destino_latitude?: number;
+  destino_longitude?: number;
+  trajeto_manual?: boolean;
+  tipo_cobranca?: string;
+  possui_retorno?: boolean;
+  classificacao_trajeto?: string;
+
+  // Fechamento financeiro / KM
+  km_inicial?: number;
+  km_final?: number;
+  km_total_rodado?: number;
+  valor_custo_estacionamento?: number;
+  valor_custo_pedagio?: number;
+  valor_custo_extra_terceiros?: number;
+
+  // Horas de parada
+  tempo_hora_parada?: string; // interval HH:MM:SS
+  valor_unitario_hora_parada?: number;
+  valor_total_hora_parada?: number;
+  obs_hora_parada?: string;
+
+  // Auditoria financeira
+  resumo_financeiro?: string;
+  observacoes_financeiras?: string;
+  conferida_financeiro?: boolean;
+  observacoes_gerais?: string;
+
   // Joins
   empresa?: Empresa;
   motorista?: Motorista;
   veiculo?: Veiculo;
   tarifario?: Tarifario;
 };
+
 
 export type Financeiro = {
   id: string;

@@ -3,16 +3,16 @@ import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
-import { veiculoSchema } from '../schemas';
-import type { VeiculoFormData } from '../schemas';
-import { veiculoService } from '../services/veiculos.service';
-import type { Veiculo } from '../types';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card } from '../components/ui/Card';
-import { exportToExcel, exportToPDF } from '../utils/export';
-import { useLoadingStore } from '../stores/useLoadingStore';
-import { showToast, showConfirm } from '../utils/swal';
+import { veiculoSchema } from '../../schemas';
+import type { VeiculoFormData } from '../../schemas';
+import { veiculoService } from '../../services/veiculos.service';
+import type { Veiculo } from '../../types';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Card } from '../../components/ui/Card';
+import { exportToExcel, exportToPDF } from '../../utils/export';
+import { useLoadingStore } from '../../stores/useLoadingStore';
+import { showToast, showConfirm } from '../../utils/swal';
 
 export const Veiculos = () => {
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);

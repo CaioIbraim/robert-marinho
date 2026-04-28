@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { empresaService } from '../services/empresas.service';
-import { ordemService } from '../services/ordens.service';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/StatusBadge';
+import { empresaService } from '../../services/empresas.service';
+import { ordemService } from '../../services/ordens.service';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 import { 
   ArrowLeft, 
   Building2, 
@@ -17,9 +17,9 @@ import {
   TrendingUp,
   Search
 } from 'lucide-react';
-import { formatDateBR } from '../utils/date';
-import type { Empresa, OrdemServico } from '../types';
-import { supabase } from '../lib/supabaseClient';
+import { formatDateBR } from '../../utils/date';
+import type { Empresa, OrdemServico } from '../../types';
+import { supabase } from '../../lib/supabaseClient';
 
 export const EmpresaDetalhe = () => {
   const { id } = useParams();

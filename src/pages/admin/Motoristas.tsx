@@ -3,17 +3,17 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, User, Download, FileText, ChevronLeft, ChevronRight, Filter, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motoristaSchema } from '../schemas';
-import type { MotoristaFormData } from '../schemas';
-import { motoristaService } from '../services/motoristas.service';
-import type { Motorista } from '../types';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card } from '../components/ui/Card';
-import { FormDatePicker } from '../components/ui/FormDatePicker';
-import { exportToExcel, exportToPDF } from '../utils/export';
-import { useLoadingStore } from '../stores/useLoadingStore';
-import { showToast, showConfirm } from '../utils/swal';
+import { motoristaSchema } from '../../schemas';
+import type { MotoristaFormData } from '../../schemas';
+import { motoristaService } from '../../services/motoristas.service';
+import type { Motorista } from '../../types';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Card } from '../../components/ui/Card';
+import { FormDatePicker } from '../../components/ui/FormDatePicker';
+import { exportToExcel, exportToPDF } from '../../utils/export';
+import { useLoadingStore } from '../../stores/useLoadingStore';
+import { showToast, showConfirm } from '../../utils/swal';
 
 export const Motoristas = () => {
   const navigate = useNavigate();

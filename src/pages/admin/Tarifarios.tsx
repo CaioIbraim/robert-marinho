@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, MapPin, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
-import { tarifarioSchema, type TarifarioFormData } from '../schemas';
-import { tarifarioService } from '../services/tarifarios.service';
-import { useLoadingStore } from '../stores/useLoadingStore';
-import { showToast, showConfirm } from '../utils/swal';
-import type { Tarifario } from '../types';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card } from '../components/ui/Card';
+import { tarifarioSchema, type TarifarioFormData } from '../../schemas';
+import { tarifarioService } from '../../services/tarifarios.service';
+import { useLoadingStore } from '../../stores/useLoadingStore';
+import { showToast, showConfirm } from '../../utils/swal';
+import type { Tarifario } from '../../types';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Card } from '../../components/ui/Card';
 
 export const Tarifarios = () => {
   const [tarifarios, setTarifarios] = useState<Tarifario[]>([]);
