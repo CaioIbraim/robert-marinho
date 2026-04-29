@@ -52,7 +52,7 @@ export const OperadorOrdemDetalhe = () => {
               status: 'cancelado', 
               observacoes_gerais: (data.observacoes_gerais || '') + '\n[SISTEMA] Cancelada automaticamente por atraso superior a 60 minutos no check-in.' 
             });
-            showToast('Ordem cancelada automaticamente por atraso superior a 30 minutos.', 'error');
+            showToast('Ordem cancelada automaticamente por atraso superior a 60 minutos.', 'error');
             window.location.reload();
             return;
           }

@@ -23,6 +23,7 @@ import { formatDateBR, formatDateTimeBR } from '../../utils/date';
 import { exportToExcel, exportToPDF, generatePaymentReceipt } from '../../utils/export';
 import { ModalOS } from '../../components/ui/ModalOS';
 import { useNavigate } from 'react-router-dom';
+import { QuickCreateOS } from './QuickCreateOS';
 
 
 export const OperadorOrdens = () => {
@@ -390,17 +391,31 @@ export const OperadorOrdens = () => {
           <h1 className="text-2xl font-bold text-white">Ordens de Serviço</h1>
           <p className="text-text-muted">Gerencie os transportes e fretes.</p>
         </div>
-        <Button onClick={() => {
+          <Button onClick={() => {
           setEditingId(null);
           setEditingFormData(null);
           setIsModalOpen(true);
         }} className="flex gap-2">
-          <Plus size={20} /> Nova Ordem
+          <Plus size={20} /> Nova Ordem Completa
         </Button>
+
+       
+        
       </div>
 
       <Card className="!p-0 overflow-visible">
+         <QuickCreateOS
+            empresas={empresas}
+            motoristas={motoristas}
+            veiculos={veiculos}
+            onSuccess={loadData}
+          />
+
         <div className="p-4 border-b border-border flex flex-col sm:flex-row items-center gap-4">
+
+
+
+          
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input
@@ -483,6 +498,12 @@ export const OperadorOrdens = () => {
         </div>
 
         <div className="overflow-x-auto">
+
+
+
+
+
+          
           <table className="w-full text-left text-sm">
             <thead className="bg-surface border-b border-border text-text-muted uppercase text-[10px] font-bold tracking-wider">
               <tr>

@@ -37,7 +37,7 @@ export const Header = ({ onMenuOpen }: { onMenuOpen: () => void }) => {
     try {
       await supabase.auth.signOut();
       showToast('Logout realizado com sucesso');
-      navigate('/admin/login');
+      navigate('/');
     } catch (err) {
       console.error(err);
       showToast('Erro ao sair', 'error');
@@ -162,7 +162,7 @@ export const Header = ({ onMenuOpen }: { onMenuOpen: () => void }) => {
               <button
                 onClick={() => {
                   setOpenUser(false);
-                  navigate('/admin/profile');
+                  navigate('/config/profile');
                 }}
                 className="w-full text-left px-4 py-3 text-sm hover:bg-border/30 transition"
               >

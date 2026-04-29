@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './layouts/DashboardLayout';
+import { OperadorDashboardLayout } from './layouts/OperadorDashboardLayout';
 import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
 import { SystemProvider } from "./context/SystemContext";
-
+import { RedirectToAdmin } from './components/RedirectToAdmin';
+import { NotFound } from './pages/NotFound';
 // Public Pages
 import Landing from "./pages/public/Landing";
 import { ServiceLanding } from "./pages/public/ServiceLanding";
@@ -36,9 +38,7 @@ import { OrdemDetalhe } from './pages/admin/OrdemDetalhe';
 import { EmpresaDetalhe } from './pages/admin/EmpresaDetalhe';
 import { MotoristaDetalhe } from './pages/admin/MotoristaDetalhe';
 import { AprovacaoUsuarios } from './pages/admin/AprovacaoUsuarios';
-import { Profile } from './pages/admin/Profile';
-
-
+import { ConfigProfile } from './pages/config/ConfigProfile';
 
 // Operador Pages
 import { OperadorDashboard } from "./pages/operador/Dashboard";
@@ -46,23 +46,22 @@ import { OperadorOrdens } from "./pages/operador/Ordens";
 import { OperadorOrdemDetalhe } from './pages/operador/OrdemDetalhe';
 import { OperadorProfile } from './pages/operador/Profile';
 
-
 function App() {
   return (
     <BrowserRouter>
       <SystemProvider>
         <Routes>
-          
+
           {/* ===================== */}
-          {/* Páginas Públicas       */}
+          {/* Páginas Públicas */}
           {/* ===================== */}
           <Route path="/" element={<Landing />} />
           <Route path="/servico/:slug" element={<ServiceLanding />} />
           <Route path="/portal-clientes" element={<PrePortalLanding />} />
           <Route path="/pre-cadastro" element={<PreCadastro />} />
-          
+
           {/* ===================== */}
-          {/* Logins                */}
+          {/* Logins */}
           {/* ===================== */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/portal/login" element={<PortalLogin />} />
@@ -70,23 +69,46 @@ function App() {
           <Route path="/operador/login" element={<OperadorLogin />} />
 
           {/* ===================== */}
-          {/* Portal do Cliente      */}
+          {/* Redirects (FORA de áreas protegidas) */}
+          {/* ===================== */}
+          <Route path="/dashboard" element={<RedirectToAdmin />} />
+          <Route path="/empresas" element={<RedirectToAdmin to="/admin/empresas" />} />
+          <Route path="/motoristas" element={<RedirectToAdmin to="/admin/motoristas" />} />
+          <Route path="/veiculos" element={<RedirectToAdmin to="/admin/veiculos" />} />
+          <Route path="/ordens" element={<RedirectToAdmin to="/admin/ordens" />} />
+          <Route path="/tarifarios" element={<RedirectToAdmin to="/admin/tarifarios" />} />
+          <Route path="/financeiro" element={<RedirectToAdmin to="/admin/financeiro" />} />
+          <Route path="/fechamento" element={<RedirectToAdmin to="/admin/fechamento" />} />
+          <Route path="/notificacoes" element={<RedirectToAdmin to="/admin/notificacoes" />} />
+          <Route path="/mapa" element={<RedirectToAdmin to="/admin/mapa" />} />
+          <Route path="/usuarios" element={<RedirectToAdmin to="/admin/usuarios" />} />
+          <Route path="/profile" element={<RedirectToAdmin to="/admin/profile" />} />
+
+          {/* ===================== */}
+          {/* Configuração (multi-role) */}
+          {/* ===================== */}
+          <Route element={<RoleProtectedRoute allowedRoles={['cliente', 'motorista', 'admin', 'operador']} redirectPath="/" />}>
+              <Route path="/config/profile" element={<ConfigProfile />} />
+          </Route>
+
+          {/* ===================== */}
+          {/* Portal Cliente */}
           {/* ===================== */}
           <Route element={<RoleProtectedRoute allowedRoles={['cliente']} redirectPath="/portal/login" />}>
             <Route path="/portal/dashboard" element={<ClientDashboard />} />
           </Route>
 
           {/* ===================== */}
-          {/* Portal do Motorista   */}
+          {/* Motorista */}
           {/* ===================== */}
           <Route element={<RoleProtectedRoute allowedRoles={['motorista']} redirectPath="/motorista/login" />}>
             <Route path="/motorista/dashboard" element={<MotoristaDashboard />} />
           </Route>
 
           {/* ===================== */}
-          {/* Painel Administrativo */}
+          {/* Admin */}
           {/* ===================== */}
-          <Route element={<RoleProtectedRoute allowedRoles={['admin']} redirectPath="/admin/login" />}>
+          <Route element={<RoleProtectedRoute allowedRoles={['admin']} />}>
             <Route element={<DashboardLayout />}>
               <Route path="/admin/dashboard" element={<Dashboard />} />
               <Route path="/admin/empresas" element={<Empresas />} />
@@ -102,30 +124,14 @@ function App() {
               <Route path="/admin/notificacoes" element={<Notificacoes />} />
               <Route path="/admin/mapa" element={<MapaRota />} />
               <Route path="/admin/usuarios" element={<AprovacaoUsuarios />} />
-              <Route path="/admin/profile" element={<Profile />} />
-              
-              {/* Compatibilidade de rotas antigas */}
-              <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="/empresas" element={<Navigate to="/admin/empresas" replace />} />
-              <Route path="/motoristas" element={<Navigate to="/admin/motoristas" replace />} />
-              <Route path="/veiculos" element={<Navigate to="/admin/veiculos" replace />} />
-              <Route path="/ordens" element={<Navigate to="/admin/ordens" replace />} />
-              <Route path="/tarifarios" element={<Navigate to="/admin/tarifarios" replace />} />
-              <Route path="/financeiro" element={<Navigate to="/admin/financeiro" replace />} />
-              <Route path="/fechamento" element={<Navigate to="/admin/fechamento" replace />} />
-              <Route path="/notificacoes" element={<Navigate to="/admin/notificacoes" replace />} />
-              <Route path="/mapa" element={<Navigate to="/admin/mapa" replace />} />
-              <Route path="/usuarios" element={<Navigate to="/admin/usuarios" replace />} />
-              <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
             </Route>
           </Route>
 
-
           {/* ===================== */}
-          {/* Painel Operador */}
+          {/* Operador */}
           {/* ===================== */}
           <Route element={<RoleProtectedRoute allowedRoles={['operador']} redirectPath="/operador/login" />}>
-            <Route element={<DashboardLayout />}>
+            <Route element={<OperadorDashboardLayout />}>
               <Route path="/operador/dashboard" element={<OperadorDashboard />} />
               <Route path="/operador/ordens" element={<OperadorOrdens />} />
               <Route path="/operador/ordens/:id" element={<OperadorOrdemDetalhe />} />
@@ -133,8 +139,12 @@ function App() {
             </Route>
           </Route>
 
+          {/* ===================== */}
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* ===================== */}
+          
+          <Route path="*" element={<NotFound />} />
+          
         </Routes>
       </SystemProvider>
     </BrowserRouter>

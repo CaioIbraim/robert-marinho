@@ -6,24 +6,40 @@ export function useAuth() {
   const { user, session, loading, setSession, setLoading } = useAuthStore();
 
   useEffect(() => {
-    // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('useAuth: session fetched', !!session);
-      setSession(session);
-      setLoading(false);
-    }).catch(err => {
-      console.error('useAuth: error fetching session', err);
-      setLoading(false);
-    });
+    let isMounted = true;
 
-    // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
-    });
+    const init = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
 
-    return () => subscription.unsubscribe();
-  }, [setSession, setLoading]);
+        if (!isMounted) return;
 
-  return { user, session, loading, isAuthenticated: !!session };
+        setSession(data.session);
+      } catch (err) {
+        console.error('Auth error:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        setSession(newSession);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  return {
+    user,
+    session,
+    loading,
+    isAuthenticated: !!session,
+  };
 }
