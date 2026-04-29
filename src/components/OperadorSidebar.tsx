@@ -3,18 +3,9 @@ import { NavLink, useNavigate } from 'react-router-dom';
 
 import {
   FaChartBar,
-  FaBuilding,
-  FaTruck,
-  FaUsers,
   FaFileAlt,
   FaSignOutAlt,
   FaTimes,
-  FaDollarSign,
-  FaBell,
-  FaMap,
-  FaTag,
-  FaClipboardCheck,
-  FaPlusCircle
 } from 'react-icons/fa';
 
 

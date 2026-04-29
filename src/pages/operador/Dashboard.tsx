@@ -7,7 +7,7 @@ import { FaturamentoChart } from '../../components/FaturamentoChart';
 import { OrdensRecentes } from '../../components/OrdensRecentes';
 import { OrdensPendentes } from '../../components/OrdensPendentes';
 import { Link } from 'react-router-dom';
-import { Plus, ListTodo, Route as RouteIcon, Calendar} from 'lucide-react';
+import { Plus, Calendar} from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { empresaService } from '../../services/empresas.service';
 import { motoristaService } from '../../services/motoristas.service';
