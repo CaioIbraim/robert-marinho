@@ -6,6 +6,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect } from 'react';
 import { useLoadingStore } from '../stores/useLoadingStore';
+import { OperadorHeader } from '../components/OperadorHeader';
 
 export const OperadorDashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -39,7 +40,7 @@ export const OperadorDashboardLayout = () => {
       <OperadorSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       <div className="flex-1 flex flex-col min-w-0">
-        <Header onMenuOpen={() => setIsSidebarOpen(true)} />
+        <OperadorHeader onMenuOpen={() => setIsSidebarOpen(true)} />
         
         <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
           <Outlet />

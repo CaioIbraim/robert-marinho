@@ -42,11 +42,11 @@ export const OperadorOrdemDetalhe = () => {
         if ((data as any).paradas) setParadas((data as any).paradas);
         
         // Verificação de cancelamento automático por atraso (> 60 min)
+        /*
         if (data.status === 'pendente') {
           const scheduled = parseISO(data.data_execucao);
           const now = new Date();
           const delay = differenceInMinutes(now, scheduled);
-          
           if (delay > 60) {
             await ordemService.update(id!, { 
               status: 'cancelado', 
@@ -57,6 +57,7 @@ export const OperadorOrdemDetalhe = () => {
             return;
           }
         }
+        */
         
         // Gerar QR Code PIX
         if (data) {

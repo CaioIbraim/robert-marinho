@@ -44,7 +44,7 @@ import { ConfigProfile } from './pages/config/ConfigProfile';
 import { OperadorDashboard } from "./pages/operador/Dashboard";
 import { OperadorOrdens } from "./pages/operador/Ordens";
 import { OperadorOrdemDetalhe } from './pages/operador/OrdemDetalhe';
-import { OperadorProfile } from './pages/operador/Profile';
+import { Profile } from './pages/operador/Profile';
 
 function App() {
   return (
@@ -135,7 +135,8 @@ function App() {
               <Route path="/operador/dashboard" element={<OperadorDashboard />} />
               <Route path="/operador/ordens" element={<OperadorOrdens />} />
               <Route path="/operador/ordens/:id" element={<OperadorOrdemDetalhe />} />
-              <Route path="/operador/profile" element={<OperadorProfile />} />
+              <Route path="/operador/profile" element={<Profile />} />
+              <Route path="/operador/notificacoes" element={<Notificacoes />} />
             </Route>
           </Route>
 

@@ -3,7 +3,6 @@ import { Card } from '../../components/ui/Card';
 import { useDashboard } from '../../hooks/useDashboard';
 import { useComparativo } from '../../hooks/useComparativo';
 import { useRealtimeDashboard } from '../../hooks/useRealtimeDashboard';
-import { FaturamentoChart } from '../../components/FaturamentoChart';
 import { OrdensRecentes } from '../../components/OrdensRecentes';
 import { OrdensPendentes } from '../../components/OrdensPendentes';
 import { Link } from 'react-router-dom';
@@ -301,29 +300,8 @@ export const OperadorDashboard = () => {
           icon={FaTruck}
         />
 
-        <StatCard
-          title="Faturamento"
-          value={`R$ ${data?.faturamento?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
-          icon={FaDollarSign}
-        />
-
-        <StatCard
-          title="Custos (Repasse)"
-          value={`R$ ${data?.repasse?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
-          icon={FaTruck}
-        />
-
-        <StatCard
-          title="Lucro Líquido"
-          value={`R$ ${data?.lucro?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
-          icon={FaDollarSign}
-        />
       </div>
 
-      {/* GRÁFICO */}
-      <Card title="Faturamento Mensal">
-        <FaturamentoChart />
-      </Card>
 
       {/* GRID INFERIOR */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
