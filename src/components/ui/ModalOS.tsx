@@ -13,6 +13,7 @@ import {
 import { Button } from './Button';
 
 import { format } from 'date-fns';
+import { getTimeFromDate } from '../../utils/date';
 
 type Parada = {
   endereco_ponto: string;
@@ -143,15 +144,14 @@ export function ModalOS({
   };
 
   const getTimeValue = (fieldValue: string | null | undefined) => {
-    if (!fieldValue) return '';
-    const d = new Date(fieldValue);
-    if (isNaN(d.getTime())) return fieldValue?.slice(11, 16) || '';
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return getTimeFromDate(fieldValue);
   };
 
   const setTimeValue = (fieldName: 'horario_inicio' | 'horario_fim', time: string) => {
-    const dataExec = watch('data_execucao') || new Date().toISOString().split('T')[0];
-    const base = dataExec.length === 10 ? dataExec : dataExec.split('T')[0];
+    const now = new Date();
+    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dataExec = watch('data_execucao') || localDate;
+    const base = dataExec.includes('T') ? dataExec.split('T')[0] : dataExec;
     setValue(fieldName, `${base}T${time}:00`);
   };
 

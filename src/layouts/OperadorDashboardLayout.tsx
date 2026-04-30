@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
 import { OperadorSidebar } from '../components/OperadorSidebar';
-import { Header } from '../components/Header';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect } from 'react';

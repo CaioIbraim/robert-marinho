@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, Eye, Clock, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, Eye, Clock, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, MapPin } from 'lucide-react';
 import { FaUsers, FaBuilding } from 'react-icons/fa';
 import { supabase } from '../../lib/supabaseClient';
 import type { OrdemServicoFormData } from '../../schemas';
@@ -12,14 +12,14 @@ import { notificationService } from '../../services/notifications.service';
 import { useLoadingStore } from '../../stores/useLoadingStore';
 import { showToast, showConfirm } from '../../utils/swal';
 import type { OrdemServico, Empresa, Motorista, Veiculo, Tarifario } from '../../types';
-import { format, parseISO, isValid, isBefore, isAfter } from 'date-fns';
+import { format, parseISO, isValid, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { formatDateBR, formatDateTimeBR } from '../../utils/date';
+import { formatDateBR, formatDateTimeBR, getTimeFromDate, getWaitTimeInMinutes } from '../../utils/date';
 import { exportToExcel, exportToPDF, generatePaymentReceipt } from '../../utils/export';
 import { ModalOS } from '../../components/ui/ModalOS';
 import { useNavigate } from 'react-router-dom';
@@ -71,6 +71,7 @@ export const OperadorOrdens = () => {
 
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -85,7 +86,10 @@ export const OperadorOrdens = () => {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: 'asc' });
 
   const [ordemToConfirm, setOrdemToConfirm] = useState<string | null>(null);
-  const [confirmData, setConfirmData] = useState({ forma_pagamento: 'pix', data_pagamento: new Date().toISOString().split('T')[0] });
+  const [confirmData, setConfirmData] = useState({ 
+    forma_pagamento: 'pix', 
+    data_pagamento: new Date().toLocaleDateString('en-CA') 
+  });
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [statusOrdemTarget, setStatusOrdemTarget] = useState<OrdemServico | null>(null);
@@ -167,22 +171,6 @@ export const OperadorOrdens = () => {
     return isBefore(scheduledStart, now) && !ordem.horario_fim;
   }, []);
 
-  // 🔥 Cálculo de heatmap de picos de demanda
-  const heatmapData = useMemo(() => {
-    const hours = Array.from({ length: 24 }, (_, i) => ({ hour: i, count: 0 }));
-    ordens.forEach(o => {
-      if (o.data_execucao) {
-        const date = parseISO(o.data_execucao);
-        if (isValid(date)) {
-          const hour = date.getHours();
-          hours[hour].count++;
-        }
-      }
-    });
-    const maxCount = Math.max(...hours.map(h => h.count), 1);
-    return hours.map(h => ({ ...h, intensity: h.count / maxCount }));
-  }, [ordens]);
-
   // 📊 Contagem de ordens por status
   const statusCounts = useMemo((): StatusCounts => {
     return ordens.reduce((acc, o) => {
@@ -247,7 +235,7 @@ export const OperadorOrdens = () => {
           await supabase.from('ordem_servico_paradas').delete().eq('ordem_id', ordemId);
         }
         if (paradas.length > 0) {
-          const dataExec = data.data_execucao?.split('T')[0] || new Date().toISOString().split('T')[0];
+          const dataExec = data.data_execucao?.split('T')[0] || new Date().toLocaleDateString('en-CA');
           await supabase.from('ordem_servico_paradas').insert(
             paradas.filter(p => p.endereco_ponto).map(p => ({
               ordem_id: ordemId,
@@ -295,6 +283,10 @@ export const OperadorOrdens = () => {
   };
 
   const handleEdit = (ordem: OrdemServico) => {
+    if (ordem.status === 'concluido') {
+      showToast('Ordens concluídas não podem ser editadas.', 'warning');
+      return;
+    }
     setEditingId(ordem.id);
     const formData: OrdemServicoFormData = {
       empresa_id: ordem.empresa_id,
@@ -331,9 +323,9 @@ export const OperadorOrdens = () => {
   const handleOpenStatusModal = (ordem: OrdemServico) => {
     setStatusOrdemTarget(ordem);
     setNewStatus(ordem.status);
-    // 🕐 Preenche check-in/check-out se existirem
-    setStatusCheckIn(ordem.horario_inicio || '');
-    setStatusCheckOut(ordem.horario_fim || '');
+    // 🕐 Preenche check-in/check-out se existirem formatados
+    setStatusCheckIn(getTimeFromDate(ordem.horario_inicio));
+    setStatusCheckOut(getTimeFromDate(ordem.horario_fim));
     setStatusModalOpen(true);
   };
 
@@ -341,11 +333,27 @@ export const OperadorOrdens = () => {
     if (!statusOrdemTarget) return;
 
     try {
+      if (newStatus === 'em_andamento') {
+        const confirmResult = await showConfirm(
+          'Iniciar Atendimento?',
+          `Deseja iniciar o atendimento para a OS ${statusOrdemTarget.id.slice(0, 8)}? O horário de check-in será registrado.`
+        );
+        if (!confirmResult.isConfirmed) return;
+      }
+
+      if (newStatus === 'cancelado') {
+        const confirmResult = await showConfirm(
+          'Cancelar Ordem?',
+          'Esta ação é irreversível. Deseja realmente cancelar esta OS?'
+        );
+        if (!confirmResult.isConfirmed) return;
+      }
+
       setGlobalLoading(true);
       
-      // 🕐 Atualiza também check-in/check-out se fornecidos
       const updatePayload: Partial<OrdemServico> = { 
         status: newStatus as any,
+        data_execucao: statusOrdemTarget.data_execucao,
         ...(statusCheckIn && { horario_inicio: statusCheckIn }),
         ...(statusCheckOut && { horario_fim: statusCheckOut })
       };
@@ -378,11 +386,16 @@ export const OperadorOrdens = () => {
   };
 
   const handleDelete = async (id: string) => {
+    const ordemToDelete = ordens.find(o => o.id === id);
+    if (ordemToDelete?.status === 'concluido') {
+      showToast('Ordens concluídas não podem ser excluídas.', 'error');
+      return;
+    }
+
     const result = await showConfirm('Tem certeza?', 'Deseja realmente excluir esta ordem de serviço?');
     if (result.isConfirmed) {
       try {
         setGlobalLoading(true);
-        const ordemToDelete = ordens.find(o => o.id === id);
         await ordemService.delete(id);
 
         await notificationService.create({
@@ -419,6 +432,7 @@ export const OperadorOrdens = () => {
           (o.destino?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
           (o.passageiro?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
           (o.empresa?.razao_social?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+          (o.motorista?.nome?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
           (o.id?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
       const matchStatus = statusFilter === '' || o.status === statusFilter;
       const matchEmpresa = empresaFilter === '' || o.empresa_id === empresaFilter;
@@ -562,37 +576,6 @@ export const OperadorOrdens = () => {
     </div>
   );
 
-  // 🔥 Componente de Heatmap simplificado
-  const HeatmapPreview = () => (
-    <div className="mb-4 p-3 bg-surface/50 border border-border rounded-lg">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-text-muted uppercase tracking-wider">🔥 Picos de Demanda</span>
-        <span className="text-[10px] text-text-muted">Base para BI</span>
-      </div>
-      <div className="flex gap-0.5">
-        {heatmapData.map((h, i) => (
-          <div
-            key={i}
-            className={`flex-1 h-8 rounded-sm transition-all ${
-              h.intensity === 0 ? 'bg-border/30' :
-              h.intensity < 0.3 ? 'bg-emerald-500/40' :
-              h.intensity < 0.6 ? 'bg-amber-500/60' :
-              'bg-red-500/80'
-            }`}
-            title={`${h.hour.toString().padStart(2, '0')}:00 - ${h.count} ordens`}
-          />
-        ))}
-      </div>
-      <div className="flex justify-between mt-1 text-[9px] text-text-muted">
-        <span>00h</span>
-        <span>06h</span>
-        <span>12h</span>
-        <span>18h</span>
-        <span>23h</span>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -601,6 +584,13 @@ export const OperadorOrdens = () => {
           <p className="text-text-muted">Gerencie os transportes e fretes.</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="ghost"
+            onClick={() => setIsQuickCreateOpen(true)}
+            className="flex gap-2 border border-primary/20 text-primary hover:bg-primary/10"
+          >
+            <Plus size={20} /> Cadastro Rápido
+          </Button>
           <Button onClick={() => {
             setEditingId(null);
             setOrdemFormData(null);
@@ -614,23 +604,38 @@ export const OperadorOrdens = () => {
       {/* 📊 Chips de filtro por status */}
       <StatusFilterChips />
 
-      {/* 🔥 Heatmap de picos */}
-      <HeatmapPreview />
+      {/* Modal Cadastro Rápido */}
+      {isQuickCreateOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="relative">
+              <button 
+                onClick={() => setIsQuickCreateOpen(false)}
+                className="absolute top-4 right-4 text-text-muted hover:text-white transition-colors p-2 bg-background border border-border rounded-full"
+              >
+                ✕
+              </button>
+              <QuickCreateOS
+                empresas={empresas}
+                motoristas={motoristas}
+                veiculos={veiculos}
+                onSuccess={() => {
+                  loadData();
+                  setIsQuickCreateOpen(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card className="!p-0 overflow-visible">
-         <QuickCreateOS
-            empresas={empresas}
-            motoristas={motoristas}
-            veiculos={veiculos}
-            onSuccess={loadData}
-          />
-
         <div className="p-4 border-b border-border flex flex-col sm:flex-row items-center gap-4">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input
               type="text"
-              placeholder="Buscar por origem, destino ou empresa..."
+              placeholder="Buscar por origem, destino, empresa ou motorista..."
               className="w-full bg-background border border-border rounded-md pl-10 pr-4 py-2 text-sm input-focus"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -765,7 +770,7 @@ export const OperadorOrdens = () => {
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-3">
                         <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex flex-col items-center justify-center border border-primary/20 relative">
-                          {/* ⚠️ Indicador visual de atraso */}
+                          {/* ⚠️ Indicador visual de atraso operacional */}
                           {isOrdemAtrasada(ordem) && (
                             <AlertTriangle size={10} className="absolute -top-1 -right-1 text-amber-500 bg-background rounded-full p-0.5" />
                           )}
@@ -792,42 +797,64 @@ export const OperadorOrdens = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 ml-1 mt-1 pt-2 border-t border-border/30">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 ml-1 mt-1 pt-2 border-t border-border/30">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter">Agendado</span>
                           <div className="flex items-center gap-1 text-orange-400">
-                            <Clock size={10} />
-                            <span className="text-[10px] font-black">
-                              {ordem.data_execucao ? formatDateTimeBR(ordem.data_execucao).split(' ')[1] : '--:--'}
-                            </span>
+                             <Clock size={10} />
+                             <span className="text-[10px] font-black">{ordem.data_execucao ? formatDateTimeBR(ordem.data_execucao).split(' ')[1] : '--:--'}</span>
                           </div>
                         </div>
-
-                        <div className="w-px h-6 bg-border/50" />
 
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter">Realizado</span>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1 text-blue-400">
-                              <span className="text-[10px] font-black whitespace-nowrap">
-                                IN: {ordem.horario_inicio ? formatDateTimeBR(ordem.horario_inicio).split(' ')[1] : '--:--'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 text-emerald-400">
-                              <span className="text-[10px] font-black whitespace-nowrap">
-                                OUT: {ordem.horario_fim ? formatDateTimeBR(ordem.horario_fim).split(' ')[1] : '--:--'}
-                              </span>
-                            </div>
+                          <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter">Check-in</span>
+                          <div className="flex items-center gap-1 text-blue-400">
+                             <span className="text-[10px] font-black">{ordem.horario_inicio ? getTimeFromDate(ordem.horario_inicio) : '--:--'}</span>
                           </div>
                         </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter">Check-out</span>
+                          <div className="flex items-center gap-1 text-emerald-400">
+                             <span className="text-[10px] font-black">{ordem.horario_fim ? getTimeFromDate(ordem.horario_fim) : '--:--'}</span>
+                          </div>
+                        </div>
+
+                        {ordem.horario_inicio && (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter">Espera</span>
+                            {(() => {
+                              const wait = getWaitTimeInMinutes(ordem.data_execucao, ordem.horario_inicio);
+                              return (
+                                <span className={`text-[10px] font-black ${wait > 15 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                  {wait} min
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-text-muted">
-                      <span className="text-white font-medium">{ordem.origem}</span>
-                      <span className="text-primary">→</span>
-                      <span className="text-white font-medium">{ordem.destino}</span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2 text-text-muted">
+                        <span className="text-white font-medium">{ordem.origem}</span>
+                        <span className="text-primary">→</span>
+                        <span className="text-white font-medium">{ordem.destino}</span>
+                      </div>
+                      {((ordem as any).paradas?.length > 0) && (
+                        <button 
+                          onClick={() => navigate(`/operador/ordens/${ordem.id}`)}
+                          className="flex items-center gap-1 text-primary hover:text-primary-hover w-fit mt-1.5 transition-all group/route"
+                          title="Clique para ver paradas/rota"
+                        >
+                          <MapPin size={12} className="group-hover/route:animate-bounce" />
+                          <span className="text-[10px] font-black uppercase tracking-tight border-b border-primary/20 group-hover/route:border-primary">
+                            {(ordem as any).paradas.length} paradas programadas
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -852,20 +879,38 @@ export const OperadorOrdens = () => {
                           <FileText size={18} />
                         </button>
                       )}
-                      <button
+                      <button 
+                         onClick={() => handleOpenStatusModal(ordem)}
+                         className="p-1.5 text-text-muted hover:text-primary transition-colors flex items-center gap-1 bg-surface border border-border rounded-md"
+                         title="Alterar Status Rápido"
+                      >
+                         <RefreshCw size={16} />
+                         <span className="text-[10px] font-bold uppercase hidden lg:block">Status</span>
+                      </button>
+
+                      <button 
+                        className="p-1.5 text-text-muted hover:text-white transition-colors bg-surface border border-border rounded-md"
                         onClick={() => navigate(`/operador/ordens/${ordem.id}`)}
-                        className="p-1.5 text-text-muted hover:text-cyan-400 transition-colors"
                         title="Ver Detalhes"
                       >
                         <Eye size={18} />
                       </button>
-                      <button onClick={() => handleEdit(ordem)} className="p-1.5 text-text-muted hover:text-primary transition-colors tooltip-trigger" title="Editar">
+                      
+                      <button 
+                        disabled={ordem.status === 'concluido'}
+                        className={`p-1.5 text-text-muted hover:text-primary transition-colors bg-surface border border-border rounded-md ${ordem.status === 'concluido' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => handleEdit(ordem)}
+                        title={ordem.status === 'concluido' ? "OS Concluída - Edição Bloqueada" : "Editar Ordem"}
+                      >
                         <Pencil size={18} />
                       </button>
-                      <button onClick={() => handleOpenStatusModal(ordem)} className="p-1.5 text-text-muted hover:text-orange-500 transition-colors tooltip-trigger" title="Alterar Status Rápido">
-                        <RefreshCw size={18} />
-                      </button>
-                      <button onClick={() => handleDelete(ordem.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-colors tooltip-trigger" title="Excluir">
+                      
+                      <button 
+                        disabled={ordem.status === 'concluido'}
+                        className={`p-1.5 text-text-muted hover:text-red-500 transition-colors bg-surface border border-border rounded-md ${ordem.status === 'concluido' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => handleDelete(ordem.id)}
+                        title={ordem.status === 'concluido' ? "OS Concluída - Exclusão Bloqueada" : "Excluir Ordem"}
+                      >
                         <Trash2 size={18} />
                       </button>
                     </div>
@@ -902,7 +947,6 @@ export const OperadorOrdens = () => {
         )}
       </Card>
 
-      {/* UI do Modal modularizado */}
       <ModalOS
         isOpen={isModalOpen}
         onClose={() => {
@@ -948,7 +992,7 @@ export const OperadorOrdens = () => {
                   onChange={(date: Date | null) => setConfirmData({ ...confirmData, data_pagamento: date ? format(date, 'yyyy-MM-dd') : '' })}
                   dateFormat="dd/MM/yyyy"
                   locale={ptBR}
-                  className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
+                  className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white shadow-sm"
                 />
               </div>
 
@@ -961,18 +1005,18 @@ export const OperadorOrdens = () => {
         </div>
       )}
 
-      {/* Modal Quick Status Change - 🕐 COM CHECK-IN/CHECK-OUT */}
+      {/* Modal Quick Status Change */}
       {statusModalOpen && statusOrdemTarget && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-surface border border-border rounded-xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in">
             <h3 className="text-lg font-bold text-white mb-2">Alterar Status</h3>
-            <p className="text-sm text-text-muted mb-4">
+            <p className="text-sm text-text-muted mb-4 text-center">
               Ordem: {statusOrdemTarget.origem} → {statusOrdemTarget.destino}
             </p>
 
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
-                <label className="text-sm text-text-muted">Novo Status</label>
+                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Novo Status</label>
                 <select
                   className="w-full bg-background border border-border rounded-md px-4 py-2 text-sm text-white"
                   value={newStatus}
@@ -985,29 +1029,28 @@ export const OperadorOrdens = () => {
                 </select>
               </div>
 
-              {/* 🕐 Campos de Check-in / Check-out */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase">Check-in</label>
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Check-in</label>
                   <input
                     type="time"
-                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-white"
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-white input-focus"
                     value={statusCheckIn}
                     onChange={(e) => setStatusCheckIn(e.target.value)}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase">Check-out</label>
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Check-out</label>
                   <input
                     type="time"
-                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-white"
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-white input-focus"
                     value={statusCheckOut}
                     onChange={(e) => setStatusCheckOut(e.target.value)}
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 justify-end">
+              <div className="flex gap-3 justify-end mt-4">
                 <Button type="button" variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancelar</Button>
                 <Button type="button" onClick={handleQuickStatusChange} className="bg-primary hover:opacity-90">Salvar Status</Button>
               </div>

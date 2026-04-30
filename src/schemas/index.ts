@@ -33,8 +33,8 @@ export const veiculoSchema = z.object({
 export const ordemServicoSchema = z.object({
   // === ABA 1: OPERACIONAL ===
   empresa_id: z.string().uuid('Selecione uma empresa válida'),
-  motorista_id: z.string().uuid('Selecione um motorista'),
-  veiculo_id: z.string().uuid('Selecione um veículo'),
+  motorista_id: z.string().uuid().nullable().optional(),
+  veiculo_id: z.string().uuid().nullable().optional(),
   numero_os: z.string().nullable().optional(),
   data_execucao: z.string().min(1, 'Data de execução é obrigatória'),
   horario_inicio: z.string().nullable().optional(),
