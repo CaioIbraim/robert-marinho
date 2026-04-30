@@ -13,6 +13,7 @@ export interface DashboardData {
   faturamento: number;
   repasse: number;
   lucro: number;
+  ordensList: Array<{ data_execucao: string | null }>;
 }
 
 export interface ComparativoData {

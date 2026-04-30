@@ -18,6 +18,8 @@ export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess }: any
     valor_faturamento: '',
     valor_custo_motorista: '',
     data_repasse: '',
+    horario_fim: '',
+    hora_execucao: '',
   });
 
   const motoristaSelecionado = motoristas.find((m: any) => m.id === form.motorista_id);
@@ -51,8 +53,9 @@ export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess }: any
         origem: form.origem,
         destino: form.destino,
         passageiro: form.passageiro,
-        data_execucao: buildDateTime(form.data_execucao),
+        data_execucao: buildDateTime(form.data_execucao, form.hora_execucao) as string,
         horario_inicio: buildDateTime(form.data_execucao, form.horario_inicio),
+        horario_fim: buildDateTime(form.data_execucao, form.horario_fim),
         valor_faturamento: Number(form.valor_faturamento || 0),
         valor_custo_motorista: Number(form.valor_custo_motorista || 0),
         status: "pendente" as const,
@@ -83,6 +86,8 @@ export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess }: any
         valor_faturamento: '',
         valor_custo_motorista: '',
         data_repasse: '',
+        horario_fim: '',
+        hora_execucao: '',
       });
 
       onSuccess?.();
@@ -105,7 +110,7 @@ export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess }: any
       </div>
 
       {/* BLOCO 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
 
         <div className="flex flex-col gap-1">
           <label className="text-xs text-text-muted">Empresa *</label>
@@ -152,12 +157,22 @@ export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess }: any
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-text-muted">Data *</label>
+          <label className="text-xs text-text-muted font-bold uppercase tracking-widest text-[9px]">Data *</label>
           <input
             type="date"
             className="input-focus bg-background border border-border rounded-md px-3 py-2 text-sm"
             value={form.data_execucao}
             onChange={(e) => handleChange('data_execucao', e.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-text-muted font-bold uppercase tracking-widest text-[9px]">Hora Agendada</label>
+          <input
+            type="time"
+            className="input-focus bg-background border border-border rounded-md px-3 py-2 text-sm"
+            value={form.hora_execucao}
+            onChange={(e) => handleChange('hora_execucao', e.target.value)}
           />
         </div>
       </div>
@@ -216,6 +231,16 @@ export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess }: any
             className="input-focus bg-background border border-border rounded-md px-3 py-2 text-sm"
             value={form.horario_inicio}
             onChange={(e) => handleChange('horario_inicio', e.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-text-muted">Check-out</label>
+          <input
+            type="time"
+            className="input-focus bg-background border border-border rounded-md px-3 py-2 text-sm"
+            value={form.horario_fim}
+            onChange={(e) => handleChange('horario_fim', e.target.value)}
           />
         </div>
 

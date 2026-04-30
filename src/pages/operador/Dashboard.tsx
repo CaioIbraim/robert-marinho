@@ -1,18 +1,17 @@
-import { FaFileAlt, FaUsers, FaTruck, FaDollarSign } from 'react-icons/fa';
+import { FaFileAlt, FaUsers, FaTruck } from 'react-icons/fa';
 import { Card } from '../../components/ui/Card';
 import { useDashboard } from '../../hooks/useDashboard';
 import { useComparativo } from '../../hooks/useComparativo';
 import { useRealtimeDashboard } from '../../hooks/useRealtimeDashboard';
-import { FaturamentoChart } from '../../components/FaturamentoChart';
 import { OrdensRecentes } from '../../components/OrdensRecentes';
 import { OrdensPendentes } from '../../components/OrdensPendentes';
 import { Link } from 'react-router-dom';
-import { Plus, Calendar} from 'lucide-react';
+import { Plus, Calendar, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { empresaService } from '../../services/empresas.service';
 import { motoristaService } from '../../services/motoristas.service';
 import { veiculoService } from '../../services/veiculos.service';
-import { format, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, parseISO, isValid } from 'date-fns';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import '../../styles/datepicker-custom.css';
@@ -143,6 +142,23 @@ export const OperadorDashboard = () => {
   /* =========================
      LOADING
   ========================= */
+  const heatmapData = (() => {
+    const hours = Array.from({ length: 24 }, (_, i) => ({ hour: i, count: 0 }));
+    if (data?.ordensList) {
+      data.ordensList.forEach(o => {
+        if (o.data_execucao) {
+          const date = parseISO(o.data_execucao);
+          if (isValid(date)) {
+            const hour = date.getHours();
+            hours[hour].count++;
+          }
+        }
+      });
+    }
+    const maxCount = Math.max(...hours.map(h => h.count), 1);
+    return hours.map(h => ({ ...h, intensity: h.count / maxCount }));
+  })();
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
@@ -301,29 +317,43 @@ export const OperadorDashboard = () => {
           icon={FaTruck}
         />
 
-        <StatCard
-          title="Faturamento"
-          value={`R$ ${data?.faturamento?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
-          icon={FaDollarSign}
-        />
+        {/* HEATMAP MIGRADO DA TELA DE ORDENS */}
+        <Card className="col-span-1 md:col-span-2 lg:col-span-4 !p-4 bg-surface/30">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+              <Clock size={14} className="text-primary" /> Calor de Demanda Operacional (Picos de Horário)
+            </h4>
+            <span className="text-[10px] text-text-muted bg-surface px-2 py-0.5 rounded border border-border">Baseado nos últimos 30 dias</span>
+          </div>
+          <div className="flex gap-1 h-12">
+            {heatmapData.map((h, i) => (
+              <div
+                key={i}
+                className={`flex-1 rounded-sm transition-all relative group ${
+                  h.intensity === 0 ? 'bg-border/20' :
+                  h.intensity < 0.3 ? 'bg-emerald-500/40' :
+                  h.intensity < 0.6 ? 'bg-amber-500/60' :
+                  'bg-red-500/80 hover:bg-red-500'
+                }`}
+                title={`${h.hour.toString().padStart(2, '0')}:00 - ${h.count} ordens`}
+              >
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                  {h.hour}:00 - {h.count} OS
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between mt-2 text-[10px] font-bold text-text-muted uppercase tracking-tighter">
+            <span>00:00</span>
+            <span>06:00</span>
+            <span>12:00</span>
+            <span>18:00</span>
+            <span>23:59</span>
+          </div>
+        </Card>
 
-        <StatCard
-          title="Custos (Repasse)"
-          value={`R$ ${data?.repasse?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
-          icon={FaTruck}
-        />
-
-        <StatCard
-          title="Lucro Líquido"
-          value={`R$ ${data?.lucro?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || 0}`}
-          icon={FaDollarSign}
-        />
       </div>
 
-      {/* GRÁFICO */}
-      <Card title="Faturamento Mensal">
-        <FaturamentoChart />
-      </Card>
 
       {/* GRID INFERIOR */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

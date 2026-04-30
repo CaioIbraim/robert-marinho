@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { subDays } from 'date-fns';
 import { supabase } from '../lib/supabaseClient';
 
 export const useDashboard = (filters?: {
@@ -59,13 +60,21 @@ export const useDashboard = (filters?: {
       const repasse = faturamentos.data?.reduce((acc, curr) => acc + (Number(curr.valor_custo_motorista) || 0), 0) || 0;
       const lucro = faturamento - repasse;
 
+      // Busca as ordens reais para o heatmap
+      const { data: ordensList } = await supabase
+        .from('ordens_servico')
+        .select('data_execucao')
+        .gte('data_execucao', filters?.startDate || subDays(new Date(), 30).toISOString())
+        .lte('data_execucao', filters?.endDate || new Date().toISOString());
+
       return {
         ordens: ordens.count || 0,
         motoristas: motoristas.count || 0,
         veiculos: veiculos.count || 0,
         faturamento,
         repasse,
-        lucro
+        lucro,
+        ordensList: ordensList || []
       };
     },
     staleTime: 1000 * 60 * 5

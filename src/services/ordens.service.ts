@@ -18,21 +18,18 @@ const toISO = (value?: string) => {
 
 // Combina data_execucao (timestamp) + hora separada
 const combineDateTime = (dateTime?: string, time?: string) => {
-  if (!dateTime || !time) return null;
+  if (!time) return null;
 
-  try {
-    const datePart = dateTime.split('T')[0]; // pega só YYYY-MM-DD
+  // Se 'time' já for um timestamp completo, extraímos apenas a hora dele para recombinar com a data
+  const actualTime = time.includes('T') ? time.split('T')[1].slice(0, 5) : time.slice(0, 5);
 
-    const isoString = `${datePart}T${time}:00`;
+  const dateBase = dateTime || new Date().toISOString().split('T')[0]; // Se não houver data, assume hoje (UTC mas split resolve pra maioria dos casos)
+  // Melhoria: extrair data local caso dateTime seja nulo
+  const datePart = dateBase.includes('T') ? dateBase.split('T')[0] : dateBase;
 
-    const parsed = new Date(isoString);
-
-    if (isNaN(parsed.getTime())) return null;
-
-    return parsed.toISOString();
-  } catch {
-    return null;
-  }
+  // Retornamos o formato local YYYY-MM-DDTHH:mm:ss para evitar shift de timezone (UTC-3)
+  // Já que o banco é 'timestamp without time zone'
+  return `${datePart}T${actualTime}:00`;
 };
 
 // Remove campos inválidos
@@ -166,9 +163,9 @@ export const ordemService = {
       tarifario_id: finalTarifarioId,
       numero_os: data.numero_os || null,
 
-      // ✅ já é timestamp completo
+      // ✅ Mantemos como está (local) ou garantimos formato ISO sem 'Z'
       data_execucao: data.data_execucao
-        ? new Date(data.data_execucao).toISOString()
+        ? data.data_execucao.includes('T') ? data.data_execucao.slice(0, 19) : `${data.data_execucao}T00:00:00`
         : null,
 
       // ✅ derivado corretamente
@@ -217,6 +214,12 @@ export const ordemService = {
   // =========================
   async update(id: string, data: Partial<OrdemServicoFormData>) {
     const payload = sanitizePayload({ ...data });
+    
+    if (payload.data_execucao) {
+      payload.data_execucao = payload.data_execucao.includes('T') 
+        ? payload.data_execucao.slice(0, 19) 
+        : `${payload.data_execucao}T00:00:00`;
+    }
 
     if (payload.horario_inicio) {
       payload.horario_inicio = combineDateTime(payload.data_execucao, payload.horario_inicio);
