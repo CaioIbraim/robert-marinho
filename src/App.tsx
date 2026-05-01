@@ -5,25 +5,27 @@ import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
 import { SystemProvider } from "./context/SystemContext";
 import { RedirectToAdmin } from './components/RedirectToAdmin';
 import { NotFound } from './pages/NotFound';
+
 // Public Pages
 import Landing from "./pages/public/Landing";
 import { ServiceLanding } from "./pages/public/ServiceLanding";
 
-// Portal Cliente
+// Auth & Logins Específicos (Restaurando Layouts Originais)
+import { Login as LoginGlobal } from "./pages/auth/Login";
+import { AdminLogin } from "./pages/auth/AdminLogin";
+import { OperadorLogin } from "./pages/auth/OperadorLogin";
+import { MotoristaLogin } from "./pages/auth/MotoristaLogin";
 import { PortalLogin } from "./pages/client/PortalLogin";
-import { PrePortalLanding } from "./pages/client/PrePortalLanding";
-import { PreCadastro } from "./pages/client/PreCadastro";
 import ClientDashboard from "./pages/client/ClientDashboard";
 
-// Autenticação
-import { AdminLogin } from "./pages/auth/AdminLogin";
-import { MotoristaLogin } from "./pages/auth/MotoristaLogin";
-import { OperadorLogin } from "./pages/auth/OperadorLogin";
+import { SignupEmpresa } from "./pages/auth/SignupEmpresa";
+import { SignupMotorista } from "./pages/auth/SignupMotorista";
+import { RedefinirSenha } from "./pages/auth/RedefinirSenha";
+import { EsqueciSenha } from "./pages/auth/EsqueciSenha";
+import { AguardandoAprovacao } from "./pages/auth/AguardandoAprovacao";
+import { NaoAutorizado } from "./pages/auth/NaoAutorizado";
 
-// Motorista
-import MotoristaDashboard from "./pages/driver/MotoristaDashboard";
-
-// Admin Pages
+// Admin & Operador
 import { Dashboard } from "./pages/admin/Dashboard";
 import { Empresas } from "./pages/admin/Empresas";
 import { Motoristas } from "./pages/admin/Motoristas";
@@ -38,30 +40,42 @@ import { OrdemDetalhe } from './pages/admin/OrdemDetalhe';
 import { EmpresaDetalhe } from './pages/admin/EmpresaDetalhe';
 import { MotoristaDetalhe } from './pages/admin/MotoristaDetalhe';
 import { AprovacaoUsuarios } from './pages/admin/AprovacaoUsuarios';
-import { ConfigProfile } from './pages/config/ConfigProfile';
+import { GestaoPerfis } from './pages/admin/GestaoPerfis';
 
-// Operador Pages
 import { OperadorDashboard } from "./pages/operador/Dashboard";
 import { OperadorOrdens } from "./pages/operador/Ordens";
 import { OperadorOrdemDetalhe } from './pages/operador/OrdemDetalhe';
 import { Profile } from './pages/operador/Profile';
+import { ConfigProfile } from './pages/config/ConfigProfile';
+
+// Novas Roles: Empresa & Motorista
+import { EmpresaDashboard } from "./pages/empresa/Dashboard";
+import MotoristaDashboard from "./pages/driver/MotoristaDashboard";
 
 function App() {
   return (
     <BrowserRouter>
       <SystemProvider>
         <Routes>
-
           {/* ===================== */}
           {/* Páginas Públicas */}
           {/* ===================== */}
           <Route path="/" element={<Landing />} />
           <Route path="/servico/:slug" element={<ServiceLanding />} />
-          <Route path="/portal-clientes" element={<PrePortalLanding />} />
-          <Route path="/pre-cadastro" element={<PreCadastro />} />
+          
+          {/* ===================== */}
+          {/* Autenticação Global & Cadastro */}
+          {/* ===================== */}
+          <Route path="/login" element={<LoginGlobal />} />
+          <Route path="/cadastro/empresa" element={<SignupEmpresa />} />
+          <Route path="/cadastro/motorista" element={<SignupMotorista />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+          <Route path="/aguardando-aprovacao" element={<AguardandoAprovacao />} />
+          <Route path="/nao-autorizado" element={<NaoAutorizado />} />
 
           {/* ===================== */}
-          {/* Logins */}
+          {/* Logins Específicos (Layouts Diferenciados) */}
           {/* ===================== */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/portal/login" element={<PortalLogin />} />
@@ -69,46 +83,15 @@ function App() {
           <Route path="/operador/login" element={<OperadorLogin />} />
 
           {/* ===================== */}
-          {/* Redirects (FORA de áreas protegidas) */}
+          {/* Redirects */}
           {/* ===================== */}
           <Route path="/dashboard" element={<RedirectToAdmin />} />
-          <Route path="/empresas" element={<RedirectToAdmin to="/admin/empresas" />} />
-          <Route path="/motoristas" element={<RedirectToAdmin to="/admin/motoristas" />} />
-          <Route path="/veiculos" element={<RedirectToAdmin to="/admin/veiculos" />} />
-          <Route path="/ordens" element={<RedirectToAdmin to="/admin/ordens" />} />
-          <Route path="/tarifarios" element={<RedirectToAdmin to="/admin/tarifarios" />} />
-          <Route path="/financeiro" element={<RedirectToAdmin to="/admin/financeiro" />} />
-          <Route path="/fechamento" element={<RedirectToAdmin to="/admin/fechamento" />} />
-          <Route path="/notificacoes" element={<RedirectToAdmin to="/admin/notificacoes" />} />
-          <Route path="/mapa" element={<RedirectToAdmin to="/admin/mapa" />} />
-          <Route path="/usuarios" element={<RedirectToAdmin to="/admin/usuarios" />} />
           <Route path="/profile" element={<RedirectToAdmin to="/admin/profile" />} />
 
           {/* ===================== */}
-          {/* Configuração (multi-role) */}
+          {/* Área: ADMIN */}
           {/* ===================== */}
-          <Route element={<RoleProtectedRoute allowedRoles={['cliente', 'motorista', 'admin', 'operador']} redirectPath="/" />}>
-              <Route path="/config/profile" element={<ConfigProfile />} />
-          </Route>
-
-          {/* ===================== */}
-          {/* Portal Cliente */}
-          {/* ===================== */}
-          <Route element={<RoleProtectedRoute allowedRoles={['cliente']} redirectPath="/portal/login" />}>
-            <Route path="/portal/dashboard" element={<ClientDashboard />} />
-          </Route>
-
-          {/* ===================== */}
-          {/* Motorista */}
-          {/* ===================== */}
-          <Route element={<RoleProtectedRoute allowedRoles={['motorista']} redirectPath="/motorista/login" />}>
-            <Route path="/motorista/dashboard" element={<MotoristaDashboard />} />
-          </Route>
-
-          {/* ===================== */}
-          {/* Admin */}
-          {/* ===================== */}
-          <Route element={<RoleProtectedRoute allowedRoles={['admin']} />}>
+          <Route element={<RoleProtectedRoute allowedRoles={['admin']} redirectPath="/admin/login" />}>
             <Route element={<DashboardLayout />}>
               <Route path="/admin/dashboard" element={<Dashboard />} />
               <Route path="/admin/empresas" element={<Empresas />} />
@@ -124,11 +107,13 @@ function App() {
               <Route path="/admin/notificacoes" element={<Notificacoes />} />
               <Route path="/admin/mapa" element={<MapaRota />} />
               <Route path="/admin/usuarios" element={<AprovacaoUsuarios />} />
+              <Route path="/admin/perfis" element={<GestaoPerfis />} />
+              <Route path="/admin/profile" element={<ConfigProfile />} />
             </Route>
           </Route>
 
           {/* ===================== */}
-          {/* Operador */}
+          {/* Área: OPERADOR */}
           {/* ===================== */}
           <Route element={<RoleProtectedRoute allowedRoles={['operador']} redirectPath="/operador/login" />}>
             <Route element={<OperadorDashboardLayout />}>
@@ -141,11 +126,26 @@ function App() {
           </Route>
 
           {/* ===================== */}
-          {/* Fallback */}
+          {/* Área: EMPRESA */}
           {/* ===================== */}
-          
+          <Route element={<RoleProtectedRoute allowedRoles={['empresa']} redirectPath="/login" />}>
+            <Route path="/empresa/dashboard" element={<EmpresaDashboard />} />
+          </Route>
+
+          {/* ===================== */}
+          {/* Área: MOTORISTA */}
+          {/* ===================== */}
+          <Route element={<RoleProtectedRoute allowedRoles={['motorista']} redirectPath="/motorista/login" />}>
+            <Route path="/motorista/dashboard" element={<MotoristaDashboard />} />
+          </Route>
+
+          {/* Area: PORTAL CLIENTE */}
+          <Route element={<RoleProtectedRoute allowedRoles={['cliente']} redirectPath="/portal/login" />}>
+             <Route path="/portal/dashboard" element={<ClientDashboard />} />
+          </Route>
+
+          {/* Fallback */}
           <Route path="*" element={<NotFound />} />
-          
         </Routes>
       </SystemProvider>
     </BrowserRouter>

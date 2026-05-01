@@ -22,7 +22,6 @@ type PerfilPendente = {
   telefone?: string;
 };
 
-const WHATSAPP_ADMIN = '5521993306919';
 
 // Gera senha aleatória forte
 function gerarSenhaAleatoria(): string {
@@ -142,6 +141,32 @@ export function AprovacaoUsuarios() {
         
         authUserId = authData.user.id;
 
+        // Busca ou cria a empresa "PARTICULAR"
+        const { data: empresaParticular } = await supabase
+          .from('empresas')
+          .select('id')
+          .ilike('razao_social', '%PARTICULAR%')
+          .limit(1)
+          .single();
+
+        let particularId = empresaParticular?.id;
+
+        if (!particularId) {
+          const { data: newCompany } = await supabase
+            .from('empresas')
+            .insert({
+              razao_social: 'PARTICULAR',
+              nome_fantasia: 'ROBERT MARINHO',
+              cnpj: '00000000000000',
+              email: 'particular@robertmarinho.com.br',
+              telefone: '21993306919',
+              status: 'ativo'
+            })
+            .select('id')
+            .single();
+          particularId = newCompany?.id;
+        }
+
         // Cria o registro na tabela perfis vinculado ao novo Auth User
         const { error: perfilErr } = await supabase.from('perfis').insert({
           id: authUserId,
@@ -149,21 +174,35 @@ export function AprovacaoUsuarios() {
           full_name: perfil.full_name || perfil.nome,
           role: perfil.role,
           status: 'aprovado',
-          aprovado_operador: true
+          aprovado_operador: true,
         });
         if (perfilErr) throw perfilErr;
 
-        // Vincula o perfil ao registro original (empresa ou motorista)
+        // Se for cadastrando como CLIENTE, vinculamos o perfil à empresa PARTICULAR
+        // mas através da tabela empresas.perfil_id? 
+        // Na verdade, se for "PARTICULAR", temos UM registro na tb empresas com perfil_id = null?
+        // O usuário disse: "a tb empresas que tem o perfil_id".
+        // Então se o usuário X é da empresa Y, então empresaY.perfil_id = X.id.
+        
         if (perfil.tipo_lead === 'empresa') {
           await supabase.from('empresas').update({ 
             status: 'ativo',
-            // Se houver campo perfil_id ou similar em empresas (no schema não vi, mas pode existir)
+            perfil_id: authUserId
           }).eq('id', perfil.id);
         } else if (perfil.tipo_lead === 'motorista') {
           await supabase.from('motoristas').update({ 
             status: 'ativo',
             perfil_id: authUserId 
           }).eq('id', perfil.id);
+        } else if (perfil.role === 'cliente') {
+           // Em vez de sobrescrever o perfil_id da empresa (que afetaria a empresa toda),
+           // criamos um registro na tabela CLIENTES que vincula este perfil à empresa.
+           await supabase.from('clientes').insert({
+             nome: perfil.full_name || perfil.nome,
+             empresa_id: particularId,
+             perfil_id: authUserId,
+             status: 'ativo'
+           });
         }
       } else {
         // Fluxo normal para quem já tem Perfil/Auth (pendente)
@@ -232,9 +271,11 @@ export function AprovacaoUsuarios() {
     if (result.isConfirmed) rejeitaMutation.mutate(perfil);
   };
 
-  const getWhatsAppLink = (perfil: PerfilPendente) => {
-    const text = `✅ *Robert Marinho Logística* — Seu acesso foi aprovado!\n\nOlá ${perfil.full_name || ''},\n\nSeu cadastro foi liberado. Por favor, acesse o link abaixo e redefina sua senha:\n\n🔗 ${window.location.origin}/portal/login\n\nAtenciosamente,\nEquipe Robert Marinho Logística\nwww.robertmarinho.com.br`;
-    return `https://wa.me/${WHATSAPP_ADMIN}?text=${encodeURIComponent(text)}`;
+  const getWhatsAppLink = (perfil: PerfilPendente, tempSenha?: string) => {
+    const text = `✅ *Robert Marinho Logística* — Seu acesso foi aprovado!\n\nOlá ${perfil.full_name || ''},\n\nSeu cadastro foi liberado. ${tempSenha ? `Sua senha temporária é: *${tempSenha}*` : 'Por favor, utilize a senha cadastrada'}.\n\nAcesse agora:\n🔗 ${window.location.origin}/portal/login\n\nAtenciosamente,\nEquipe Robert Marinho Logística\nwww.robertmarinho.com.br`;
+    // Remove caracteres não numéricos do telefone
+    const phone = (perfil.telefone || '').replace(/\D/g, '');
+    return `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`;
   };
 
   const roleLabel: Record<string, { label: string; color: string }> = {
@@ -396,7 +437,7 @@ export function AprovacaoUsuarios() {
                   </div>
                   <div className="pt-3 border-t border-border">
                     <p className="text-xs text-text-muted mb-2 font-bold uppercase tracking-widest">Notificar via WhatsApp manualmente:</p>
-                    <a href={getWhatsAppLink(perfil)} target="_blank" rel="noopener noreferrer"
+                    <a href={getWhatsAppLink(perfil, lastGeneratedPassword?.email === perfil.email ? lastGeneratedPassword.pass : undefined)} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-[10px] font-bold text-green-400 hover:underline">
                       💬 Enviar mensagem de aprovação
                     </a>

@@ -104,19 +104,29 @@ export const Ordens = () => {
 
       if (!finalTarifarioId && data.origem && data.destino) {
         try {
+          // Busca se já existe um tarifário para essa rota
           const { data: existingTarifa } = await supabase
-            .from('tarifarios').select('id')
+            .from('tarifarios').select('id, valor_venda')
             .eq('origem', data.origem).eq('destino', data.destino).maybeSingle();
+          
           if (existingTarifa) {
             finalTarifarioId = existingTarifa.id;
+            // Opcional: Se o valor da OS for diferente do tarifário, poderíamos atualizar o tarifário 
+            // ou apenas manter o da OS. O usuário quer gravar o valor passado na OS.
           } else {
+            // Se não existe, cria um novo tarifário com os valores da OS
             const { data: newTarifa } = await supabase
               .from('tarifarios')
-              .insert({ origem: data.origem, destino: data.destino, valor_venda: data.valor_faturamento || 0, valor_custo: data.valor_custo_motorista || 0 })
+              .insert({ 
+                origem: data.origem, 
+                destino: data.destino, 
+                valor_venda: data.valor_faturamento || 0, 
+                valor_custo: data.valor_custo_motorista || 0 
+              })
               .select().maybeSingle();
             if (newTarifa) finalTarifarioId = newTarifa.id;
           }
-        } catch (e) { console.warn(e); }
+        } catch (e) { console.warn('Erro ao processar tarifário automático:', e); }
       }
 
       const payload = {
@@ -230,7 +240,7 @@ export const Ordens = () => {
       numero_requisicao_bu: ordem.numero_requisicao_bu || '',
       forma_faturamento: ordem.forma_faturamento || '',
       observacoes_gerais: ordem.observacoes_gerais || '',
-      trajeto_manual: ordem.trajeto_manual || true,
+      trajeto_manual: ordem.trajeto_manual ?? true,
     };
     setEditingFormData(formData);
     setIsModalOpen(true);

@@ -35,12 +35,25 @@ export function MotoristaLogin() {
     setIsLoading(true);
     setError(null);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
       if (error) throw error;
+
+      // Validar role
+      const { data: profile } = await supabase
+        .from('perfis')
+        .select('role')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profile?.role !== 'motorista') {
+        await supabase.auth.signOut();
+        throw new Error('Acesso negado. Utilize o portal correto para sua conta.');
+      }
+
       navigate('/motorista/dashboard');
     } catch (err: any) {
       setError(err.message || 'Erro ao realizar login');

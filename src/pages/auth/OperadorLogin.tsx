@@ -29,12 +29,25 @@ export const OperadorLogin = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
       if (error) throw error;
+
+      // Validar role
+      const { data: profile } = await supabase
+        .from('perfis')
+        .select('role')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profile?.role !== 'operador') {
+        await supabase.auth.signOut();
+        throw new Error('Acesso negado. Esta área é exclusiva para operadores.');
+      }
+
       navigate('/operador/dashboard');
     } catch (err: any) {
       setError(err.message || 'Erro ao realizar login');

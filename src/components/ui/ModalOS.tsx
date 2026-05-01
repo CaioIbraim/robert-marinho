@@ -71,16 +71,44 @@ export function ModalOS({
 
   // Ao selecionar tarifário, auto-popula origem/destino e valor
   useEffect(() => {
-    if (watchedTarifarioId && watchedTarifarioId !== '') {
+    // Só auto-popula se o tarifário mudou em relação ao dado original (para não sobrescrever ao abrir o modal)
+    const isInitialLoad = editingData?.tarifario_id === watchedTarifarioId;
+    
+    if (watchedTarifarioId && watchedTarifarioId !== '' && !isInitialLoad) {
       const tar = tarifarios.find(t => t.id === watchedTarifarioId);
       if (tar) {
         setValue('origem', tar.origem);
         setValue('destino', tar.destino);
         setValue('valor_faturamento', tar.valor_venda);
         if (tar.valor_custo) setValue('valor_custo_motorista', tar.valor_custo);
+        setValue('trajeto_manual', false);
       }
     }
-  }, [watchedTarifarioId]);
+  }, [watchedTarifarioId, tarifarios]);
+
+  // Se o preenchimento for manual e mudar origem/destino, tenta buscar valor sugerido se não houver valor preenchido
+  const watchedOrigem = watch('origem');
+  const watchedDestino = watch('destino');
+  const watchedValorVenda = watch('valor_faturamento');
+
+  useEffect(() => {
+    const fetchSugerido = async () => {
+      if (watchedOrigem && watchedDestino && (watchedValorVenda === 0 || !watchedValorVenda)) {
+        const { data } = await supabase
+          .from('tarifarios')
+          .select('valor_venda, valor_custo')
+          .eq('origem', watchedOrigem)
+          .eq('destino', watchedDestino)
+          .maybeSingle();
+        
+        if (data) {
+          setValue('valor_faturamento', data.valor_venda);
+          if (data.valor_custo) setValue('valor_custo_motorista', data.valor_custo);
+        }
+      }
+    };
+    fetchSugerido();
+  }, [watchedOrigem, watchedDestino]);
 
   // Popula formulário ao editar
   useEffect(() => {

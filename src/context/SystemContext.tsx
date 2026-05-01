@@ -7,6 +7,7 @@ interface SystemContextType {
   perfil: UserProfile | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isEmpresa: boolean;
   isClient: boolean;
   isDriver: boolean;
   userStatus: 'pendente' | 'aprovado' | 'bloqueado' | null;
@@ -24,7 +25,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     perfil: userPerfil,
     isLoading,
     isAdmin: userPerfil?.role === 'admin' || userPerfil?.role === 'operador',
-    isClient: userPerfil?.role === 'cliente', // Empresa agora mapeia para Cliente no DB
+    isEmpresa: userPerfil?.role === 'empresa',
+    isClient: userPerfil?.role === 'cliente',
     isDriver: userPerfil?.role === 'motorista',
     userStatus: userPerfil?.status || null,
   };

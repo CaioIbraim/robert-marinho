@@ -3,9 +3,10 @@ export type UserProfile = {
   email: string;
   full_name?: string;
   avatar_url?: string;
-  role: 'admin' | 'operador' | 'motorista' | 'cliente';
-  empresa_id?: string;
+  role: 'admin' | 'operador' | 'motorista' | 'cliente' | 'empresa';
   status?: 'pendente' | 'aprovado' | 'bloqueado';
+  aprovado_operador?: boolean;
+  cpf?: string;
 };
 
 export type Empresa = {
@@ -18,6 +19,7 @@ export type Empresa = {
   status: string;
   created_at: string;
   updated_at?: string;
+  perfil_id?: string;
 };
 
 export type Motorista = {
@@ -34,6 +36,7 @@ export type Motorista = {
   status: string;
   created_at: string;
   updated_at?: string;
+  perfil_id?: string;
 };
 
 export type Veiculo = {
