@@ -2,15 +2,15 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useSystem } from '../context/SystemContext';
 
 interface RoleProtectedRouteProps {
-  allowedRoles: ('admin' | 'operador' | 'motorista' | 'cliente')[];
+  allowedRoles: ('admin' | 'operador' | 'motorista' | 'cliente' | 'empresa')[];
   redirectPath?: string;
 }
 
 export const RoleProtectedRoute = ({ 
   allowedRoles, 
-  redirectPath = '/admin/login' 
+  redirectPath = '/login' 
 }: RoleProtectedRouteProps) => {
-  const { perfil, isLoading, userStatus } = useSystem();
+  const { perfil, isLoading } = useSystem();
 
   if (isLoading) {
     return (
@@ -20,41 +20,24 @@ export const RoleProtectedRoute = ({
     );
   }
 
-  // Se o perfil for nulo, significa que não está autenticado e o perfil não foi carregado
+  // 1. Não autenticado
   if (!perfil) {
     return <Navigate to={redirectPath} replace />;
   }
 
+  // 2. Não autorizado (role errada)
   if (!allowedRoles.includes(perfil.role)) {
-    // Redirecionamento inteligente baseado nas roles permitidas na rota
-    const fallback = allowedRoles.includes('cliente') 
-      ? '/portal/login' 
-      : (allowedRoles.includes('motorista') ? '/motorista/login' : '/admin/login');
-    return <Navigate to={fallback} replace />;
+    return <Navigate to="/nao-autorizado" replace />;
   }
 
-  // Verificação de status para clientes
-  if (perfil.role === 'cliente' && userStatus !== 'aprovado') {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-20 h-20 bg-yellow-500/10 border border-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500 mb-6">
-          <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Aguardando Aprovação</h1>
-        <p className="text-zinc-500 max-w-sm">
-          Seu cadastro foi recebido com sucesso. Um administrador revisará seu acesso em breve. 
-          Você receberá uma notificação ou mensagem assim que for liberado.
-        </p>
-        <button 
-          onClick={() => window.location.href = '/'}
-          className="mt-8 text-primary hover:underline font-bold uppercase tracking-widest text-xs"
-        >
-          Voltar ao Início
-        </button>
-      </div>
-    );
+  // 3. Aguardando aprovação (empresa e motorista)
+  if ((perfil.role === 'empresa' || perfil.role === 'motorista') && perfil.aprovado_operador === false) {
+    return <Navigate to="/aguardando-aprovacao" replace />;
+  }
+
+  // 4. Verificação legada/específica para cliente (se necessário)
+  if (perfil.role === 'cliente' && (perfil as any).status !== 'aprovado') {
+    return <Navigate to="/aguardando-aprovacao" replace />;
   }
 
   return <Outlet />;

@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 export const usePerfil = () => {
   const user = useAuthStore((state) => state.user);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['perfil', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
@@ -24,4 +24,6 @@ export const usePerfil = () => {
       return data;
     }
   });
+
+  return query;
 };

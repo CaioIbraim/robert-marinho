@@ -75,7 +75,7 @@ export function RedefinirSenha() {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;
       setSuccess(true);
-      setTimeout(() => navigate('/portal/login'), 3000);
+      setTimeout(() => navigate('/login'), 3000);
     } catch (err: any) {
       setError(err.message || 'Erro ao redefinir senha');
     } finally {

@@ -14,7 +14,8 @@ import {
   FaMap,
   FaTag,
   FaClipboardCheck,
-  FaPlusCircle
+  FaPlusCircle,
+  FaShieldAlt
 } from 'react-icons/fa';
 
 
@@ -122,6 +123,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             <SidebarItem to="/admin/notificacoes" icon={FaBell} label="Notificações" onClick={onClose} />
             <SidebarItem to="/admin/mapa" icon={FaMap} label="Mapa de Rotas" onClick={onClose} />
             <SidebarItem to="/admin/usuarios" icon={FaPlusCircle} label="Aprovação de Acessos" onClick={onClose} />
+            <SidebarItem to="/admin/perfis" icon={FaShieldAlt} label="Gestão de Perfis" onClick={onClose} />
           </nav>
 
           {/* Footer */}
