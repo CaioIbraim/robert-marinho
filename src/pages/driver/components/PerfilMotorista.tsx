@@ -270,23 +270,23 @@ export const PerfilMotorista = ({ motorista, perfil, onUpdate }: PerfilMotorista
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
               <InfoField label="Nome Completo" value={formData.nome} isEditing={isEditing} 
-                onChange={v => setFormData({...formData, nome: v})} icon={<User />} />
+                onChange={(v: string) => setFormData({...formData, nome: v})} icon={<User />} />
               
               <InfoField label="Telefone / WhatsApp" value={formData.telefone} isEditing={isEditing} 
-                onChange={v => setFormData({...formData, telefone: v})} icon={<Mail />} />
+                onChange={(v: string) => setFormData({...formData, telefone: v})} icon={<Mail />} />
               
               <InfoField label="Número CNH" value={formData.cnh} isEditing={isEditing} 
-                onChange={v => setFormData({...formData, cnh: v})} icon={<CreditCard />} />
+                onChange={(v: string) => setFormData({...formData, cnh: v})} icon={<CreditCard />} />
               
               <div className="grid grid-cols-2 gap-4">
                  <InfoField label="Cat. CNH" value={formData.categoria_cnh} isEditing={isEditing} 
-                  onChange={v => setFormData({...formData, categoria_cnh: v})} icon={<Truck />} />
+                  onChange={(v: string) => setFormData({...formData, categoria_cnh: v})} icon={<Truck />} />
                  <InfoField label="Validade" value={formData.validade_cnh} isEditing={isEditing} type="date"
-                  onChange={v => setFormData({...formData, validade_cnh: v})} icon={<Calendar />} />
+                  onChange={(v: string) => setFormData({...formData, validade_cnh: v})} icon={<Calendar />} />
               </div>
 
               <InfoField label="Chave PIX (Recebimentos)" value={formData.chave_pix} isEditing={isEditing} 
-                onChange={v => setFormData({...formData, chave_pix: v})} icon={<CreditCard />} placeholder="E-mail, CPF ou Chave Aleatória" />
+                onChange={(v: string) => setFormData({...formData, chave_pix: v})} icon={<CreditCard />} placeholder="E-mail, CPF ou Chave Aleatória" />
               
               <div className="space-y-3">
                 <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest flex items-center gap-2">
