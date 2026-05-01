@@ -1,9 +1,14 @@
 import { useState, useEffect } from "react";
-import { Send, MapPin, AlertCircle, Sparkles, Loader2, Search, Plus, Trash2 } from "lucide-react";
+import { Send, MapPin, AlertCircle, Sparkles, Loader2, Search, Plus, Trash2, Navigation } from "lucide-react";
 import { showToast } from "../../../utils/swal";
 import { supabase } from "../../../lib/supabaseClient";
+import { notificationService } from "../../../services/notifications.service";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { ptBR } from 'date-fns/locale';
+import { parseISO, format } from 'date-fns';
 
 // Fix for default marker icons in Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -99,6 +104,38 @@ export const NovaSolicitacao = ({ empresaId, onSuccess }: NovaSolicitacaoProps) 
     }
   };
 
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      showToast('Geolocalização não é suportada pelo seu navegador.', 'warning');
+      return;
+    }
+    setSearching('origem');
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        const { latitude, longitude } = position.coords;
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+        const data = await response.json();
+        if (data && data.display_name) {
+          setForm(prev => ({ 
+            ...prev, 
+            origem: data.display_name, 
+            origem_coords: [latitude, longitude] 
+          }));
+          showToast('Localização encontrada!', 'success');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao obter endereço.', 'error');
+      } finally {
+        setSearching(null);
+      }
+    }, (error) => {
+      console.error(error);
+      showToast('Permissão de localização negada ou erro.', 'error');
+      setSearching(null);
+    });
+  };
+
   const addParada = () => {
     setForm(prev => ({
       ...prev,
@@ -177,6 +214,14 @@ export const NovaSolicitacao = ({ empresaId, onSuccess }: NovaSolicitacaoProps) 
         }
       }
 
+      await notificationService.create({
+        titulo: 'Nova Solicitação de Viagem (Cliente)',
+        mensagem: `Cliente solicitou uma viagem Premium de ${form.origem.split(',')[0]} para ${form.destino.split(',')[0]}`,
+        tipo: 'success',
+        user_id: empresaId,
+        link: '/ordens'
+      });
+
       showToast('Solicitação enviada com sucesso!', 'success');
       onSuccess();
     } catch (err: any) {
@@ -249,10 +294,18 @@ export const NovaSolicitacao = ({ empresaId, onSuccess }: NovaSolicitacaoProps) 
             <div className="grid gap-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1 flex items-center justify-between">
-                    <span className="flex items-center gap-2"><MapPin className="w-3 h-3 text-red-500" /> Ponto de Saída</span>
-                    {searching === 'origem' && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
-                  </label>
+                  <div className="flex items-center justify-between ml-1 mb-1">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                      <MapPin className="w-3 h-3 text-red-500" /> Ponto de Saída {searching === 'origem' && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+                    </label>
+                    <button 
+                      type="button" 
+                      onClick={getUserLocation}
+                      className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-1 hover:text-white transition-colors bg-primary/10 px-2 py-1 rounded-md"
+                    >
+                      <Navigation className="w-3 h-3" /> Minha Localização
+                    </button>
+                  </div>
                   <div className="relative">
                     <input 
                       required
@@ -337,11 +390,16 @@ export const NovaSolicitacao = ({ empresaId, onSuccess }: NovaSolicitacaoProps) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Data e Hora</label>
-                  <input 
+                  <DatePicker
                     required
-                    value={form.data_execucao}
-                    onChange={e => setForm({...form, data_execucao: e.target.value})}
-                    type="datetime-local" 
+                    selected={form.data_execucao ? parseISO(form.data_execucao) : null}
+                    onChange={(date: Date | null) => setForm({...form, data_execucao: date ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : ''})}
+                    showTimeSelect
+                    timeFormat="HH:mm"
+                    timeIntervals={15}
+                    dateFormat="dd/MM/yyyy HH:mm"
+                    locale={ptBR}
+                    placeholderText="Selecione data e hora..."
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-6 py-4 focus:outline-none focus:border-primary transition-all text-sm text-white" 
                   />
                 </div>

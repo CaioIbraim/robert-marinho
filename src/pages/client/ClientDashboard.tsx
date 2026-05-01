@@ -7,6 +7,7 @@ import { usePortalData } from "../../hooks/usePortalData";
 import { useAuthStore } from "../../stores/authStore";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { showToast } from "../../utils/swal";
 
 // Componentes
 import { NovaSolicitacao } from "./components/NovaSolicitacao";
@@ -16,6 +17,7 @@ import { ConfigProfile } from "../config/ConfigProfile";
 import { CorridasAndamento } from "./components/CorridasAndamento";
 import { FavoritosCliente } from "./components/FavoritosCliente";
 import { SidebarCliente } from "./components/SidebarCliente";
+import { useRealtimeNotifications } from "../../hooks/useRealtimeNotifications";
 
 type Tab = "nova" | "andamento" | "historico" | "faturas" | "equipe" | "perfil" | "favoritos";
 
@@ -25,19 +27,32 @@ export default function PortalCliente() {
   const { orders, financeiro, isLoading, perfil, refetch, empresaId } = usePortalData();
   const signOut = useAuthStore(state => state.signOut);
 
+  useRealtimeNotifications(refetch);
+
   const [favorites, setFavorites] = useState<any[]>(() => {
     const saved = localStorage.getItem('rm_favorites');
     return saved ? JSON.parse(saved) : [];
   });
 
   const toggleFavorite = (corrida: any) => {
-    const isFav = favorites.some(f => f.id === corrida.id);
-    let newFavs;
-    if (isFav) {
-      newFavs = favorites.filter(f => f.id !== corrida.id);
-    } else {
-      newFavs = [...favorites, corrida];
+    const isFavById = favorites.some(f => f.id === corrida.id);
+    
+    if (isFavById) {
+      // Remover
+      const newFavs = favorites.filter(f => f.id !== corrida.id);
+      setFavorites(newFavs);
+      localStorage.setItem('rm_favorites', JSON.stringify(newFavs));
+      return;
     }
+
+    // Adicionar (Verificar duplicidades de trajeto exato)
+    const alreadyHasRoute = favorites.some(f => f.origem === corrida.origem && f.destino === corrida.destino);
+    if (alreadyHasRoute) {
+      showToast('Você já possui esta rota exata (origem/destino) nos seus Favoritos!', 'error');
+      return;
+    }
+
+    const newFavs = [...favorites, corrida];
     setFavorites(newFavs);
     localStorage.setItem('rm_favorites', JSON.stringify(newFavs));
   };

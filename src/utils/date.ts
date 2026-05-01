@@ -87,3 +87,7 @@ export const getWaitTimeInMinutes = (scheduled: string | Date | null | undefined
   const diffMs = dActual.getTime() - dSched.getTime();
   return Math.max(0, Math.floor(diffMs / 60000));
 };
+
+export const getLocalISOString = (date: Date = new Date()) => {
+  return format(date, "yyyy-MM-dd'T'HH:mm:ss");
+};

@@ -11,6 +11,8 @@ import {
 import { format, parseISO } from "date-fns";
 import { supabase } from "../../../lib/supabaseClient";
 import { showToast } from "../../../utils/swal";
+import { getLocalISOString } from "../../../utils/date";
+import { notificationService } from "../../../services/notifications.service";
 
 interface OperacaoAtualProps {
   ordem: any;
@@ -33,7 +35,7 @@ export const OperacaoAtual = ({ ordem, onUpdate }: OperacaoAtualProps) => {
   const handleStatusChange = async (campo: 'horario_inicio' | 'horario_fim') => {
     setLoading(campo);
     try {
-      const agora = new Date().toISOString();
+      const agora = getLocalISOString();
       const updates: any = { [campo]: agora };
       
       if (campo === 'horario_inicio') updates.status = 'em_andamento';
@@ -53,6 +55,18 @@ export const OperacaoAtual = ({ ordem, onUpdate }: OperacaoAtualProps) => {
         .eq('id', ordem.id);
 
       if (error) throw error;
+      
+      const osNumero = ordem.numero_os || ordem.id.slice(0,8).toUpperCase();
+      const acaoMsg = campo === 'horario_inicio' ? `O motorista iniciou o atendimento da OS #${osNumero}` : `O motorista finalizou a OS #${osNumero}`;
+      
+      await notificationService.create({
+        titulo: campo === 'horario_inicio' ? 'Check-in Motorista' : 'Viagem Finalizada',
+        mensagem: acaoMsg,
+        tipo: 'success',
+        user_id: ordem.empresa_id,
+        link: `/ordens` // Admin/Operador can see
+      });
+
       showToast(campo === 'horario_inicio' ? 'Partida registrada!' : 'Viagem finalizada com sucesso!', 'success');
       onUpdate();
     } catch (err) {
@@ -66,13 +80,23 @@ export const OperacaoAtual = ({ ordem, onUpdate }: OperacaoAtualProps) => {
   const handleCheckinParada = async (paradaId: string) => {
     setLoading(paradaId);
     try {
-      const agora = new Date().toISOString();
+      const agora = getLocalISOString();
       const { error } = await supabase
         .from('ordem_servico_paradas')
         .update({ realizada: true, horario_realizado: agora })
         .eq('id', paradaId);
 
       if (error) throw error;
+      
+      const osNumero = ordem.numero_os || ordem.id.slice(0,8).toUpperCase();
+      await notificationService.create({
+        titulo: 'Parada Realizada',
+        mensagem: `O motorista confirmou uma parada na OS #${osNumero}`,
+        tipo: 'info',
+        user_id: ordem.empresa_id,
+        link: `/ordens` // Admin/Operador can see
+      });
+
       showToast('Parada confirmada!', 'success');
       onUpdate();
     } catch (err) {

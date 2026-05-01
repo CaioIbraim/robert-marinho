@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import type { OrdemServico } from '../types';
 import type { OrdemServicoFormData } from '../schemas';
+import { notificationService } from './notifications.service';
 
 // =========================
 // HELPERS
@@ -199,12 +200,28 @@ export const ordemService = {
       status: STATUS.PENDENTE,
     });
 
-    // 🔥 REGRA 5: notificação
-    await supabase.from('notificacoes').insert({
+    // 🔥 REGRA 5: Notificar criação e vinculação inicial
+    const empresaTargetId = payload.empresa_id || 'broadcast';
+
+    // 1. Notifica o Cliente (Sempre que criar uma OS na conta dele)
+    await notificationService.create({
       titulo: 'Nova Ordem Criada',
-      mensagem: `OS criada para ${data.destino}`,
+      mensagem: `Sua OS para ${data.destino} foi cadastrada com sucesso.`,
       tipo: 'success',
+      user_id: empresaTargetId,
+      link: '/portal/dashboard'
     });
+
+    // 2. Se já nasceu com Motorista, avisa ele!
+    if (payload.motorista_id) {
+       await notificationService.create({
+         titulo: 'Nova Viagem Atribuída',
+         mensagem: `Você foi escalado para uma nova OS em ${data.origem}.`,
+         tipo: 'info',
+         user_id: payload.motorista_id,
+         link: '/dashboard'
+       });
+    }
 
     return ordem;
   },
@@ -213,6 +230,9 @@ export const ordemService = {
   // UPDATE
   // =========================
   async update(id: string, data: Partial<OrdemServicoFormData>) {
+    // 🔍 Pegar o estado anterior para identificar o que realmente mudou
+    const oldOrdem = await this.getById(id).catch(() => null);
+
     const payload = sanitizePayload({ ...data });
     
     if (payload.data_execucao) {
@@ -241,6 +261,60 @@ export const ordemService = {
         .from('recebimentos')
         .update({ valor: payload.valor_faturamento })
         .eq('ordem_id', id);
+    }
+
+    // 🔥 REGRA 5: Notificar mudanças importantes apenas se houve alteração
+    if (oldOrdem) {
+      const empresaTargetId = payload.empresa_id || oldOrdem.empresa_id || 'broadcast';
+
+      if (payload.motorista_id && payload.motorista_id !== oldOrdem.motorista_id) {
+         // Notifica o novo motorista
+         await notificationService.create({
+           titulo: 'Nova Viagem Atribuída',
+           mensagem: `Você foi escalado para uma nova OS. Verifique seu painel.`,
+           tipo: 'info',
+           user_id: payload.motorista_id,
+           link: '/dashboard'
+         });
+         
+         // Notifica o cliente
+         await notificationService.create({
+           titulo: 'Motorista Confirmado',
+           mensagem: `Um motorista foi designado para a sua viagem.`,
+           tipo: 'success',
+           user_id: empresaTargetId,
+           link: '/portal/dashboard'
+         });
+      }
+
+      if (payload.status && payload.status !== oldOrdem.status) {
+         const labels: Record<string, string> = {
+           pendente: 'Pendente',
+           em_andamento: 'Em Andamento',
+           concluido: 'Concluída',
+           cancelado: 'Cancelada'
+         };
+
+         await notificationService.create({
+           titulo: 'Status da Viagem',
+           mensagem: `A sua solicitação mudou para: ${labels[payload.status] || payload.status}.`,
+           tipo: 'info',
+           user_id: empresaTargetId,
+           link: '/portal/dashboard'
+         });
+
+         // Informar o motorista caso a base altere o status (ex: Cancelou)
+         const motoristaNotifyId = payload.motorista_id || oldOrdem.motorista_id;
+         if (motoristaNotifyId) {
+            await notificationService.create({
+              titulo: 'Atualização pela Base',
+              mensagem: `O status da sua OS foi alterado para: ${labels[payload.status] || payload.status}.`,
+              tipo: 'warning',
+              user_id: motoristaNotifyId,
+              link: '/dashboard'
+            });
+         }
+      }
     }
   },
 

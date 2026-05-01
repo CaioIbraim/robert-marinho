@@ -86,6 +86,9 @@ export const Ordens = () => {
 
   useEffect(() => {
     loadData();
+    const handleUpdate = () => loadData();
+    document.addEventListener('rm_updateData', handleUpdate);
+    return () => document.removeEventListener('rm_updateData', handleUpdate);
   }, []);
 
   type Parada = {
@@ -669,9 +672,10 @@ export const Ordens = () => {
                       )}
                       
                       <button 
+                         disabled={ordem.status === 'concluido'}
                          onClick={() => handleOpenStatusModal(ordem)}
-                         className="p-1.5 text-text-muted hover:text-primary transition-colors flex items-center gap-1 bg-surface border border-border rounded-md"
-                         title="Alterar Status Rápido"
+                         className={`p-1.5 text-text-muted hover:text-primary transition-colors flex items-center gap-1 bg-surface border border-border rounded-md ${ordem.status === 'concluido' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                         title={ordem.status === 'concluido' ? "OS Concluída - Status Bloqueado" : "Alterar Status Rápido"}
                       >
                          <RefreshCw size={16} />
                          <span className="text-[10px] font-bold uppercase hidden lg:block">Status</span>

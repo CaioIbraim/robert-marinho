@@ -103,25 +103,17 @@ export const OperadorOrdens = () => {
 
   const { setGlobalLoading } = useLoadingStore();
 
-  // 🔴 Realtime: Subscription para atualizações automáticas
+  // 🔴 Realtime: Sincronia global via WebSocket Broadcast / Polling
   useEffect(() => {
-    const channel = supabase
-      .channel('ordens_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ordem_servico' },
-        () => {
-          // Debounce para evitar múltiplas requisições
-          const timeout = setTimeout(() => {
-            loadData();
-          }, 300);
-          return () => clearTimeout(timeout);
-        }
-      )
-      .subscribe();
-
+    const handleUpdate = () => {
+       const timeout = setTimeout(() => {
+          loadData();
+       }, 300);
+       return () => clearTimeout(timeout);
+    };
+    document.addEventListener('rm_updateData', handleUpdate);
     return () => {
-      supabase.removeChannel(channel);
+      document.removeEventListener('rm_updateData', handleUpdate);
     };
   }, []);
 
@@ -880,9 +872,10 @@ export const OperadorOrdens = () => {
                         </button>
                       )}
                       <button 
+                         disabled={ordem.status === 'concluido'}
                          onClick={() => handleOpenStatusModal(ordem)}
-                         className="p-1.5 text-text-muted hover:text-primary transition-colors flex items-center gap-1 bg-surface border border-border rounded-md"
-                         title="Alterar Status Rápido"
+                         className={`p-1.5 text-text-muted hover:text-primary transition-colors flex items-center gap-1 bg-surface border border-border rounded-md ${ordem.status === 'concluido' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                         title={ordem.status === 'concluido' ? "OS Concluída - Status Bloqueado" : "Alterar Status Rápido"}
                       >
                          <RefreshCw size={16} />
                          <span className="text-[10px] font-bold uppercase hidden lg:block">Status</span>

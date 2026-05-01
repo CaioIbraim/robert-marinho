@@ -16,6 +16,7 @@ import { HistoricoMotorista } from './components/HistoricoMotorista';
 import { FinanceiroMotorista } from './components/FinanceiroMotorista';
 import { PerfilMotorista } from './components/PerfilMotorista';
 import { ModalNotificacoes } from './components/ModalNotificacoes';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 
 export default function MotoristaDashboard() {
   const { signOut } = useAuthStore();
@@ -26,6 +27,8 @@ export default function MotoristaDashboard() {
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const { motorista, orders, earnings, isLoading, perfil, refetch } = useDriverData();
+
+  useRealtimeNotifications(refetch);
 
   const handleSignOut = async () => {
     await signOut();
