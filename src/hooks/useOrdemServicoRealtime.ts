@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 interface OrdemServicoRealtimeOptions {
@@ -23,11 +23,15 @@ export const useOrdemServicoRealtime = ({
   motoristaId,
   requireFilter = false,
 }: OrdemServicoRealtimeOptions) => {
-  // Guardamos o estado como JSON string para compatibilidade total e facilidade de comparação
   const lastStateRef = useRef<Record<string, string>>({});
   const hasLoadedOnceRef = useRef(false);
   const onUpdateRef = useRef(onUpdate);
   const onDriverActionRef = useRef(onDriverAction);
+
+  // Mantém um ID único ESTÁVEL para esta instância do hook
+  const uniqueId = useMemo(() => {
+    return `${channelId}_${Math.random().toString(36).substring(7)}`;
+  }, [channelId]);
 
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
   useEffect(() => { onDriverActionRef.current = onDriverAction; }, [onDriverAction]);
@@ -37,12 +41,12 @@ export const useOrdemServicoRealtime = ({
     let pollTimer: ReturnType<typeof setInterval>;
     let channel: any = null;
 
+    // Resetar estado local apenas se os IDs mudarem significativamente
     lastStateRef.current = {};
     hasLoadedOnceRef.current = false;
 
     const poll = async () => {
       if (!isActive) return;
-      if (requireFilter && !empresaId && !motoristaId) return;
 
       try {
         let query = supabase
@@ -52,6 +56,12 @@ export const useOrdemServicoRealtime = ({
 
         if (empresaId) query = query.eq('empresa_id', empresaId);
         if (motoristaId) query = query.eq('motorista_id', motoristaId);
+
+        // Segurança: Se filtro é obrigatório mas não temos IDs, não buscamos nada
+        if (requireFilter && !empresaId && !motoristaId) {
+           hasLoadedOnceRef.current = true;
+           return;
+        }
 
         const { data, error } = await query.limit(50);
         if (error || !data || !isActive) return;
@@ -76,7 +86,6 @@ export const useOrdemServicoRealtime = ({
               const prev = JSON.parse(prevJson);
               const currentMId = String(o.motorista_id || 'null');
               
-              // 1. Mudança de Status
               if (prev.status !== o.status) {
                 hasChange = true;
                 if (onDriverActionRef.current) {
@@ -84,22 +93,18 @@ export const useOrdemServicoRealtime = ({
                   else if (o.status === 'concluido') onDriverActionRef.current({ type: 'checkout', ordem: o });
                 }
               }
-              // 2. Mudança de Motorista (Atribuição)
               if (prev.motoristaId === 'null' && currentMId !== 'null') {
                 hasChange = true;
                 if (onDriverActionRef.current) onDriverActionRef.current({ type: 'assigned', ordem: o });
               }
-              // 3. Outras mudanças (horários, datas, etc)
               if (!hasChange && prevJson !== currentState[o.id]) {
                 hasChange = true;
               }
             } else {
-              // OS Nova apareceu na lista (ou motorista foi designado e antes não aparecia no filtro)
               hasChange = true;
             }
           });
 
-          // Verifica se alguma OS sumiu
           if (!hasChange && Object.keys(lastStateRef.current).length !== data.length) {
             hasChange = true;
           }
@@ -114,21 +119,17 @@ export const useOrdemServicoRealtime = ({
       } catch (err) { }
     };
 
-    const uniqueInstanceId = `${channelId}_${Math.random().toString(36).substring(7)}`;
-    channel = supabase.channel(uniqueInstanceId);
+    // Subscrição Supabase Realtime
+    channel = supabase.channel(uniqueId);
 
     channel
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ordens_servico' },
-        () => { if (isActive) setTimeout(poll, 400); }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ordens_servico' }, () => {
+         if (isActive) setTimeout(poll, 801); // Delay levemente diferente para evitar hits simultâneos
+      })
       .subscribe();
 
-    const handleLocalUpdate = () => {
-      if (isActive) poll();
-    };
-
+    // Listener de Eventos Locais (Broadcast interno do navegador)
+    const handleLocalUpdate = () => { if (isActive) poll(); };
     window.addEventListener('rm_updateData', handleLocalUpdate);
 
     poll();
@@ -136,9 +137,11 @@ export const useOrdemServicoRealtime = ({
 
     return () => {
       isActive = false;
-      clearInterval(pollTimer);
+      if (pollTimer) clearInterval(pollTimer);
       window.removeEventListener('rm_updateData', handleLocalUpdate);
-      if (channel) supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [channelId, pollInterval, empresaId, motoristaId, requireFilter]);
+  }, [uniqueId, pollInterval, empresaId, motoristaId, requireFilter]);
 };

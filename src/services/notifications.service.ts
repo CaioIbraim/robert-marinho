@@ -34,7 +34,6 @@ export const notificationService = {
       }
 
       // 2. Dispara Broadcast via WebSocket para ALERTA INSTANTÂNEO
-      // Usamos um canal fixo 'global_notifications' para que todos os ouvintes sintonizados recebam.
       const broadcastChannel = supabase.channel('global_notifications');
       
       broadcastChannel.send({
@@ -50,6 +49,26 @@ export const notificationService = {
     }
   },
 
+  async getAll() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    
+    const { data: perfil } = await supabase.from('perfis').select('role').eq('id', user.id).single();
+    const role = perfil?.role;
+
+    let query = supabase.from('notificacoes').select('*').order('created_at', { ascending: false });
+
+    // Admins e Operadores vêm as suas e as de broadcast
+    if (role === 'admin' || role === 'operador') {
+      query = query.or(`user_id.eq.${user.id},user_id.is.null`);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+
+    const { data } = await query;
+    return data;
+  },
+
   async markAsRead(id: string) {
     return await supabase
       .from('notificacoes')
@@ -57,12 +76,30 @@ export const notificationService = {
       .eq('id', id);
   },
 
-  async markAllAsRead(userId: string) {
-    return await supabase
-      .from('notificacoes')
-      .update({ lida: true })
-      .eq('user_id', userId)
-      .eq('lida', false);
+  async markAllAsRead(userId?: string) {
+    let targetId = userId;
+    if (!targetId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      targetId = user?.id;
+    }
+    if (!targetId) return;
+
+    const { data: perfil } = await supabase.from('perfis').select('role').eq('id', targetId).single();
+    const role = perfil?.role;
+
+    let query = supabase.from('notificacoes').update({ lida: true }).eq('lida', false);
+
+    if (role === 'admin' || role === 'operador') {
+      query = query.or(`user_id.eq.${targetId},user_id.is.null`);
+    } else {
+      query = query.eq('user_id', targetId);
+    }
+
+    return await query;
+  },
+
+  async delete(id: string) {
+    return await supabase.from('notificacoes').delete().eq('id', id);
   },
 
   async getUnreadCount(userId: string, role?: string) {

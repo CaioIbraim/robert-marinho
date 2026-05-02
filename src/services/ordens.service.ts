@@ -73,7 +73,7 @@ export const ordemService = {
           tarifario:tarifarios(*),
           paradas:ordem_servico_paradas(*)
         `)
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       if (!error) return data as OrdemServico[];
 
@@ -86,7 +86,7 @@ export const ordemService = {
           veiculo:veiculos(*),
           paradas:ordem_servico_paradas(*)
         `)
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       if (fallbackError) throw fallbackError;
       return fallbackData as OrdemServico[];
@@ -252,6 +252,14 @@ export const ordemService = {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('rm_updateData'));
     }
+
+    // 📩 NOTIFICAÇÃO GLOBAL VIA BROADCAST
+    const broadcastChannel = supabase.channel('global_notifications');
+    broadcastChannel.send({
+      type: 'broadcast',
+      event: 'os_updated',
+      payload: { id, updated_at: new Date().toISOString() }
+    });
 
     if (payload.valor_faturamento !== undefined) {
       await supabase

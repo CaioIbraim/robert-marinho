@@ -74,7 +74,15 @@ export const useRealtimeNotifications = (onNewNotification?: () => void) => {
             playNotificationSound();
 
             if (onNewNotificationRef.current) onNewNotificationRef.current();
-            document.dispatchEvent(new CustomEvent('rm_updateData'));
+            window.dispatchEvent(new CustomEvent('rm_updateData'));
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'os_updated' },
+          () => {
+            if (!isActive) return;
+            window.dispatchEvent(new CustomEvent('rm_updateData'));
           }
         )
         .subscribe();
@@ -109,7 +117,7 @@ export const useRealtimeNotifications = (onNewNotification?: () => void) => {
             });
             if (hasNew) {
               if (onNewNotificationRef.current) onNewNotificationRef.current();
-              document.dispatchEvent(new CustomEvent('rm_updateData'));
+              window.dispatchEvent(new CustomEvent('rm_updateData'));
             }
           }
         } catch (err) {}
