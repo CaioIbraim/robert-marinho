@@ -10,7 +10,7 @@ import { veiculoService } from '../../services/veiculos.service';
 import { tarifarioService } from '../../services/tarifarios.service';
 import { notificationService } from '../../services/notifications.service';
 import { useLoadingStore } from '../../stores/useLoadingStore';
-import { showToast, showConfirm } from '../../utils/swal';
+import { showToast, showConfirm, showAlert } from '../../utils/swal';
 import type { OrdemServico, Empresa, Motorista, Veiculo, Tarifario } from '../../types';
 import { format, parseISO, isValid, isBefore } from 'date-fns';
 import { useOrdemServicoRealtime } from '../../hooks/useOrdemServicoRealtime';
@@ -100,6 +100,25 @@ export const Ordens = () => {
   useOrdemServicoRealtime({
     channelId: 'admin-ordens',
     onUpdate: loadData,
+    onDriverAction: ({ type, ordem }) => {
+      const osNum = ordem.numero_os || ordem.id.slice(0, 8);
+      const motoristaNome = ordem.motorista?.nome || 'Motorista';
+      let title = '';
+      let message = '';
+      if (type === 'checkin') {
+        title = '🚩 Check-in Realizado';
+        message = `${motoristaNome} iniciou o atendimento da OS #${osNum}.\nOrigem: ${ordem.origem.split(',')[0]}`;
+      } else if (type === 'checkout') {
+        title = '🏁 Check-out Realizado';
+        message = `${motoristaNome} finalizou o atendimento da OS #${osNum}.\nDestino: ${ordem.destino.split(',')[0]}`;
+      } else if (type === 'assigned') {
+        title = '👤 Motorista Vinculado';
+        message = `A OS #${osNum} foi vinculada ao motorista ${motoristaNome}.`;
+      }
+      if (title) {
+        showAlert(title, message, 'info');
+      }
+    }
   });
 
   useEffect(() => {
@@ -781,10 +800,9 @@ export const Ordens = () => {
                       )}
                       
                       <button 
-                         disabled={ordem.status === 'concluido'}
                          onClick={() => handleOpenStatusModal(ordem)}
-                         className={`p-1.5 text-text-muted hover:text-primary transition-colors flex items-center gap-1 bg-surface border border-border rounded-md ${ordem.status === 'concluido' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                         title={ordem.status === 'concluido' ? "OS Concluída - Status Bloqueado" : "Alterar Status Rápido"}
+                         className="p-1.5 text-text-muted hover:text-primary transition-colors flex items-center gap-1 bg-surface border border-border rounded-md"
+                         title="Alterar Status Rápido"
                       >
                          <RefreshCw size={16} />
                          <span className="text-[10px] font-bold uppercase hidden lg:block">Status</span>
@@ -807,10 +825,9 @@ export const Ordens = () => {
                       </button>
                       
                       <button 
-                        disabled={ordem.status === 'concluido'}
-                        className={`p-1.5 text-text-muted hover:text-red-500 transition-colors bg-surface border border-border rounded-md ${ordem.status === 'concluido' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className="p-1.5 text-text-muted hover:text-red-500 transition-colors bg-surface border border-border rounded-md"
                         onClick={() => handleDelete(ordem.id)}
-                        title={ordem.status === 'concluido' ? "OS Concluída - Exclusão Bloqueada" : "Excluir Ordem"}
+                        title="Excluir Ordem"
                       >
                         <Trash2 size={18} />
                       </button>

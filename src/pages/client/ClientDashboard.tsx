@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { usePortalData } from "../../hooks/usePortalData";
 import { useAuthStore } from "../../stores/authStore";
+import { useSystem } from "../../context/SystemContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { showToast } from "../../utils/swal";
@@ -28,20 +29,13 @@ export default function PortalCliente() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { orders, financeiro, isLoading, perfil, refetch, empresaId } = usePortalData();
   const signOut = useAuthStore(state => state.signOut);
-
-  const [soundEnabled, setSoundEnabled] = useState(() => {
-    return localStorage.getItem('rm_client_sound') !== 'false';
-  });
-
-  const handleSoundToggle = () => {
-    const newState = !soundEnabled;
-    setSoundEnabled(newState);
-    localStorage.setItem('rm_client_sound', String(newState));
-  };
+  const { soundEnabled, toggleSound } = useSystem();
 
   useOrdemServicoRealtime({
     channelId: 'cliente-portal',
     onUpdate: refetch,
+    empresaId: empresaId || undefined,
+    requireFilter: true,
     onDriverAction: ({ type, ordem }) => {
       let msg = '';
       if (type === 'assigned') {
@@ -51,13 +45,6 @@ export default function PortalCliente() {
       }
       
       if (msg) {
-        if (soundEnabled) {
-          try {
-            const audio = new Audio('/songs/1.mp3');
-            audio.volume = 0.85;
-            audio.play().catch(() => {});
-          } catch {}
-        }
         showToast(msg, 'info');
       }
     }
@@ -175,7 +162,7 @@ export default function PortalCliente() {
                  <div className="px-4 border-r border-white/5 flex flex-col items-center">
                     <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">Som Alerta</p>
                     <button 
-                       onClick={handleSoundToggle}
+                       onClick={toggleSound}
                        className={`flex items-center gap-1 ${soundEnabled ? 'text-green-500' : 'text-zinc-500'}`}
                        title={soundEnabled ? "Desativar alertas sonoros" : "Ativar alertas sonoros"}
                     >

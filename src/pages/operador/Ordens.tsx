@@ -10,7 +10,7 @@ import { veiculoService } from '../../services/veiculos.service';
 import { tarifarioService } from '../../services/tarifarios.service';
 import { notificationService } from '../../services/notifications.service';
 import { useLoadingStore } from '../../stores/useLoadingStore';
-import { showToast, showConfirm } from '../../utils/swal';
+import { showToast, showConfirm, showAlert } from '../../utils/swal';
 import type { OrdemServico, Empresa, Motorista, Veiculo, Tarifario } from '../../types';
 import { format, parseISO, isValid, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -130,10 +130,26 @@ export const OperadorOrdens = () => {
     channelId: 'operador-ordens',
     onUpdate: loadData,
     onDriverAction: ({ type, ordem }) => {
-      // O hook já dispara o onUpdate (loadData), aqui podemos opcionalmente 
-      // reagir especificamente se quisermos toasters diferenciados, 
-      // mas o useRealtimeNotifications global já cuida dos toasts/sons.
-      console.log(`Driver action: ${type} on OS ${ordem.id}`);
+      const osNum = ordem.numero_os || ordem.id.slice(0, 8);
+      const motoristaNome = ordem.motorista?.nome || 'Motorista';
+      
+      let title = '';
+      let message = '';
+      
+      if (type === 'checkin') {
+        title = '🚩 Check-in Realizado';
+        message = `${motoristaNome} iniciou o atendimento da OS #${osNum}.\nOrigem: ${ordem.origem.split(',')[0]}`;
+      } else if (type === 'checkout') {
+        title = '🏁 Check-out Realizado';
+        message = `${motoristaNome} finalizou o atendimento da OS #${osNum}.\nDestino: ${ordem.destino.split(',')[0]}`;
+      } else if (type === 'assigned') {
+        title = '👤 Motorista Vinculado';
+        message = `A OS #${osNum} foi vinculada ao motorista ${motoristaNome}.`;
+      }
+
+      if (title) {
+        showAlert(title, message, 'info');
+      }
     }
   });
 

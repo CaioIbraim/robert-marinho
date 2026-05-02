@@ -25,22 +25,20 @@ const combineDateTime = (dateTime?: string, time?: string) => {
   const actualTime = time.includes('T') ? time.split('T')[1].slice(0, 5) : time.slice(0, 5);
 
   const dateBase = dateTime || new Date().toISOString().split('T')[0]; // Se não houver data, assume hoje (UTC mas split resolve pra maioria dos casos)
-  // Melhoria: extrair data local caso dateTime seja nulo
   const datePart = dateBase.includes('T') ? dateBase.split('T')[0] : dateBase;
 
-  // Retornamos o formato local YYYY-MM-DDTHH:mm:ss para evitar shift de timezone (UTC-3)
-  // Já que o banco é 'timestamp without time zone'
   return `${datePart}T${actualTime}:00`;
 };
 
 // Remove campos inválidos
 const sanitizePayload = (payload: any) => {
-  Object.keys(payload).forEach((key) => {
-    if (payload[key] === '' || payload[key] === undefined) {
-      payload[key] = null;
+  const result = { ...payload };
+  Object.keys(result).forEach((key) => {
+    if (result[key] === '' || result[key] === undefined) {
+      result[key] = null;
     }
   });
-  return payload;
+  return result;
 };
 
 // =========================
@@ -79,7 +77,6 @@ export const ordemService = {
 
       if (!error) return data as OrdemServico[];
 
-      // fallback
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('ordens_servico')
         .select(`
@@ -126,7 +123,6 @@ export const ordemService = {
   async create(data: OrdemServicoFormData) {
     let finalTarifarioId = data.tarifario_id || null;
 
-    // 🔥 REGRA 1: tarifário automático
     if (!finalTarifarioId && data.origem && data.destino) {
       const { data: existing } = await supabase
         .from('tarifarios')
@@ -153,57 +149,46 @@ export const ordemService = {
       }
     }
 
-    // 🔥 REGRA 2: normalização forte
     const payload = sanitizePayload({
       ...data,
-
       empresa_id: data.empresa_id,
       motorista_id: data.motorista_id || null,
       veiculo_id: data.veiculo_id || null,
-
       tarifario_id: finalTarifarioId,
       numero_os: data.numero_os || null,
-
-      // ✅ Mantemos como está (local) ou garantimos formato ISO sem 'Z'
       data_execucao: data.data_execucao
         ? data.data_execucao.includes('T') ? data.data_execucao.slice(0, 19) : `${data.data_execucao}T00:00:00`
         : null,
-
-      // ✅ derivado corretamente
       horario_inicio: data.horario_inicio
         ? combineDateTime(data.data_execucao, data.horario_inicio)
         : null,
-
       horario_fim: data.horario_fim
         ? combineDateTime(data.data_execucao, data.horario_fim)
         : null,
-
       valor_faturamento: Number(data.valor_faturamento || 0),
       valor_custo_motorista: Number(data.valor_custo_motorista || 0),
-
       status: (data.status || STATUS.PENDENTE) as StatusType,
     });
 
-    // 🔥 REGRA 3: criar OS
     const { data: ordem, error } = await supabase
       .from('ordens_servico')
-      .insert(payload)
+      .insert({
+        ...payload,
+        updated_at: new Date().toISOString()
+      })
       .select()
       .single();
 
     if (error) throw error;
 
-    // 🔥 REGRA 4: financeiro
     await supabase.from('recebimentos').insert({
       ordem_id: ordem.id,
       valor: payload.valor_faturamento,
       status: STATUS.PENDENTE,
     });
 
-    // 🔥 REGRA 5: Notificar criação e vinculação inicial
     const empresaTargetId = payload.empresa_id || 'broadcast';
 
-    // 1. Notifica o Cliente (Sempre que criar uma OS na conta dele)
     await notificationService.create({
       titulo: 'Nova Ordem Criada',
       mensagem: `Sua OS para ${data.destino} foi cadastrada com sucesso.`,
@@ -212,14 +197,21 @@ export const ordemService = {
       link: '/portal/dashboard'
     });
 
-    // 2. Se já nasceu com Motorista, avisa ele!
+    await notificationService.create({
+      titulo: 'Nova Solicitação',
+      mensagem: `Um novo pedido foi criado via portal do cliente para ${data.destino}.`,
+      tipo: 'warning',
+      user_id: 'broadcast',
+      link: '/operador/ordens'
+    });
+
     if (payload.motorista_id) {
        await notificationService.create({
          titulo: 'Nova Viagem Atribuída',
          mensagem: `Você foi escalado para uma nova OS em ${data.origem}.`,
          tipo: 'info',
          user_id: payload.motorista_id,
-         link: '/dashboard'
+         link: '/motorista/dashboard'
        });
     }
 
@@ -230,9 +222,7 @@ export const ordemService = {
   // UPDATE
   // =========================
   async update(id: string, data: Partial<OrdemServicoFormData>) {
-    // 🔍 Pegar o estado anterior para identificar o que realmente mudou
     const oldOrdem = await this.getById(id).catch(() => null);
-
     const payload = sanitizePayload({ ...data });
     
     if (payload.data_execucao) {
@@ -251,10 +241,17 @@ export const ordemService = {
 
     const { error } = await supabase
       .from('ordens_servico')
-      .update(payload)
+      .update({
+        ...payload,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id);
 
     if (error) throw error;
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('rm_updateData'));
+    }
 
     if (payload.valor_faturamento !== undefined) {
       await supabase
@@ -263,12 +260,10 @@ export const ordemService = {
         .eq('ordem_id', id);
     }
 
-    // 🔥 REGRA 5: Notificar mudanças importantes apenas se houve alteração
     if (oldOrdem) {
       const empresaTargetId = payload.empresa_id || oldOrdem.empresa_id || 'broadcast';
 
       if (payload.motorista_id && payload.motorista_id !== oldOrdem.motorista_id) {
-         // Notifica o novo motorista
          await notificationService.create({
            titulo: 'Nova Viagem Atribuída',
            mensagem: `Você foi escalado para uma nova OS. Verifique seu painel.`,
@@ -277,7 +272,6 @@ export const ordemService = {
            link: '/dashboard'
          });
          
-         // Notifica o cliente
          await notificationService.create({
            titulo: 'Motorista Confirmado',
            mensagem: `Um motorista foi designado para a sua viagem.`,
@@ -295,15 +289,22 @@ export const ordemService = {
            cancelado: 'Cancelada'
          };
 
-         await notificationService.create({
-           titulo: 'Status da Viagem',
-           mensagem: `A sua solicitação mudou para: ${labels[payload.status] || payload.status}.`,
-           tipo: 'info',
-           user_id: empresaTargetId,
-           link: '/portal/dashboard'
-         });
+          await notificationService.create({
+            titulo: 'Status da Viagem',
+            mensagem: `A sua solicitação mudou para: ${labels[payload.status] || payload.status}.`,
+            tipo: 'info',
+            user_id: empresaTargetId,
+            link: '/portal/dashboard'
+          });
 
-         // Informar o motorista caso a base altere o status (ex: Cancelou)
+          await notificationService.create({
+            titulo: 'Atualização Operacional',
+            mensagem: `O motorista alterou a OS #${oldOrdem.numero_os || id.slice(0, 8)} para: ${labels[payload.status] || payload.status}.`,
+            tipo: 'info',
+            user_id: 'broadcast',
+            link: '/operador/ordens'
+          });
+
          const motoristaNotifyId = payload.motorista_id || oldOrdem.motorista_id;
          if (motoristaNotifyId) {
             await notificationService.create({
@@ -322,12 +323,24 @@ export const ordemService = {
   // DELETE
   // =========================
   async delete(id: string) {
+    // 1. Deletar dependências (Foreign Key constraint prevention)
+    await supabase.from('recebimentos').delete().eq('ordem_id', id);
+    await supabase.from('paradas_rota').delete().eq('ordem_id', id);
+    await supabase.from('repasse_motorista').delete().eq('ordem_id', id);
+    await supabase.from('ordem_servico_paradas').delete().eq('ordem_id', id);
+    
+    // 2. Deletar a OS
     const { error } = await supabase
       .from('ordens_servico')
       .delete()
       .eq('id', id);
 
     if (error) throw error;
+    
+    // Dispara evento local para sincronizar
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('rm_updateData'));
+    }
   },
 
   // =========================
@@ -343,7 +356,7 @@ export const ordemService = {
     data_pagamento: string;
   }) {
     const { error } = await supabase
-      .from('repasse_motoristas')
+      .from('repasse_motorista')
       .insert({
         ordem_id,
         valor,

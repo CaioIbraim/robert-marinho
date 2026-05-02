@@ -7,6 +7,7 @@ import {
 import { useAuthStore } from '../../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import { useDriverData } from '../../hooks/useDriverData';
+import { useSystem } from '../../context/SystemContext';
 
 // Componentes
 import { SidebarMotorista } from './components/SidebarMotorista';
@@ -18,34 +19,24 @@ import { PerfilMotorista } from './components/PerfilMotorista';
 import { VeiculoMotoristaModule } from './components/VeiculoMotoristaModule';
 import { ModalNotificacoes } from './components/ModalNotificacoes';
 import { useOrdemServicoRealtime } from '../../hooks/useOrdemServicoRealtime';
-import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { Volume2, VolumeX } from 'lucide-react';
 
 export default function MotoristaDashboard() {
   const { signOut } = useAuthStore();
   const navigate = useNavigate();
+  const { soundEnabled, toggleSound } = useSystem();
   const [activeTab, setActiveTab] = useState<'viagens' | 'operacao' | 'historico' | 'ganhos' | 'perfil' | 'veiculo'>('viagens');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedOrdemId, setSelectedOrdemId] = useState<string | null>(null);
-
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
   const { motorista, orders, earnings, isLoading, perfil, refetch } = useDriverData();
-
-  const [soundEnabled, setSoundEnabled] = useState(() => {
-    return localStorage.getItem('rm_mute_notifications') !== 'true';
-  });
-
-  const toggleSound = () => {
-    const newState = !soundEnabled;
-    setSoundEnabled(newState);
-    localStorage.setItem('rm_mute_notifications', String(!newState));
-  };
-
-  useRealtimeNotifications(refetch);
 
   useOrdemServicoRealtime({
     channelId: 'motorista-portal',
     onUpdate: refetch,
+    motoristaId: motorista?.id || undefined,
+    requireFilter: true,
   });
 
   const handleSignOut = async () => {
@@ -164,7 +155,7 @@ export default function MotoristaDashboard() {
         {/* Content Tabs */}
         <div className="pb-20 lg:pb-0">
           {activeTab === 'viagens' && (
-            <CorridasAtribuidas orders={orders} onOpenOperacao={handleOpenOperacao} />
+             <CorridasAtribuidas orders={orders} onOpenOperacao={handleOpenOperacao} />
           )}
           {activeTab === 'operacao' && (
             <OperacaoAtual 

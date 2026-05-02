@@ -6,15 +6,12 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect } from 'react';
 import { useLoadingStore } from '../stores/useLoadingStore';
-import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 
 export const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
   const { setGlobalLoading } = useLoadingStore();
-
-  useRealtimeNotifications();
 
   useEffect(() => {
     setGlobalLoading(true);

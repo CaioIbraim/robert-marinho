@@ -6,15 +6,12 @@ import { useAuth } from '../hooks/useAuth';
 import { useEffect } from 'react';
 import { useLoadingStore } from '../stores/useLoadingStore';
 import { OperadorHeader } from '../components/OperadorHeader';
-import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 
 export const OperadorDashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
   const { setGlobalLoading } = useLoadingStore();
-
-  useRealtimeNotifications();
 
   useEffect(() => {
     setGlobalLoading(true);
