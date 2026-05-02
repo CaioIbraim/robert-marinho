@@ -41,11 +41,14 @@ export const veiculoService = {
   },
 
   async create(data: VeiculoFormData) {
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from('veiculos')
-      .insert([data]);
+      .insert([data])
+      .select()
+      .single();
     
     if (error) throw error;
+    return inserted as Veiculo;
   },
 
   async update(id: string, data: Partial<VeiculoFormData>) {

@@ -18,16 +18,11 @@ const toISO = (value?: string) => {
 };
 
 // Combina data_execucao (timestamp) + hora separada
-const combineDateTime = (dateTime?: string, time?: string) => {
-  if (!time) return null;
-
-  // Se 'time' já for um timestamp completo, extraímos apenas a hora dele para recombinar com a data
-  const actualTime = time.includes('T') ? time.split('T')[1].slice(0, 5) : time.slice(0, 5);
-
-  const dateBase = dateTime || new Date().toISOString().split('T')[0]; // Se não houver data, assume hoje (UTC mas split resolve pra maioria dos casos)
-  const datePart = dateBase.includes('T') ? dateBase.split('T')[0] : dateBase;
-
-  return `${datePart}T${actualTime}:00`;
+const combineDateTime = (date?: string, time?: string) => {
+  if (!date || !time) return null;
+  if (time.includes('T')) return time; // Já está formatado
+  const cleanTime = time.length === 5 ? `${time}:00` : time;
+  return `${date}T${cleanTime}`;
 };
 
 // Remove campos inválidos
@@ -180,6 +175,11 @@ export const ordemService = {
       .single();
 
     if (error) throw error;
+    
+    // 📢 NOTIFICA ATUALIZAÇÃO LOCAL
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('rm_updateData'));
+    }
 
     await supabase.from('recebimentos').insert({
       ordem_id: ordem.id,
@@ -187,32 +187,46 @@ export const ordemService = {
       status: STATUS.PENDENTE,
     });
 
-    const empresaTargetId = payload.empresa_id || 'broadcast';
+    // 🔔 NOTIFICAÇÕES INTELIGENTES (Silenciosas se RLS falhar)
+    try {
+      // 1. Notifica a Empresa (Cliente)
+      if (payload.empresa_id) {
+        const { data: emp } = await supabase.from('empresas').select('perfil_id').eq('id', payload.empresa_id).single();
+        if (emp?.perfil_id) {
+          await notificationService.create({
+            titulo: 'Nova Ordem Criada',
+            mensagem: `Sua OS para ${data.destino} foi cadastrada com sucesso.`,
+            tipo: 'success',
+            user_id: emp.perfil_id,
+            link: '/portal/dashboard'
+          });
+        }
+      }
 
-    await notificationService.create({
-      titulo: 'Nova Ordem Criada',
-      mensagem: `Sua OS para ${data.destino} foi cadastrada com sucesso.`,
-      tipo: 'success',
-      user_id: empresaTargetId,
-      link: '/portal/dashboard'
-    });
+      // 2. Notifica o Motorista
+      if (payload.motorista_id) {
+        const { data: mot } = await supabase.from('motoristas').select('perfil_id').eq('id', payload.motorista_id).single();
+        if (mot?.perfil_id) {
+          await notificationService.create({
+            titulo: 'Nova Viagem Atribuída',
+            mensagem: `Você foi escalado para uma nova OS em ${data.origem}.`,
+            tipo: 'info',
+            user_id: mot.perfil_id,
+            link: '/driver/dashboard'
+          });
+        }
+      }
 
-    await notificationService.create({
-      titulo: 'Nova Solicitação',
-      mensagem: `Um novo pedido foi criado via portal do cliente para ${data.destino}.`,
-      tipo: 'warning',
-      user_id: 'broadcast',
-      link: '/operador/ordens'
-    });
-
-    if (payload.motorista_id) {
-       await notificationService.create({
-         titulo: 'Nova Viagem Atribuída',
-         mensagem: `Você foi escalado para uma nova OS em ${data.origem}.`,
-         tipo: 'info',
-         user_id: payload.motorista_id,
-         link: '/motorista/dashboard'
-       });
+      // 3. Notifica Operadores (Global)
+      await notificationService.create({
+        titulo: 'Nova Solicitação',
+        mensagem: `Um novo pedido foi criado para ${data.destino}.`,
+        tipo: 'warning',
+        user_id: 'broadcast',
+        link: '/operador/ordens'
+      });
+    } catch (nError) {
+      // Ignora silenciosamente erros de RLS para não travar a criação da OS
     }
 
     return ordem;
@@ -229,14 +243,19 @@ export const ordemService = {
       payload.data_execucao = payload.data_execucao.includes('T') 
         ? payload.data_execucao.slice(0, 19) 
         : `${payload.data_execucao}T00:00:00`;
+    } else if (!payload.data_execucao && oldOrdem?.data_execucao) {
+      // Garantir que temos a data base para reconstruir horários se necessário
+      payload.data_execucao = oldOrdem.data_execucao;
     }
 
+    const currentDataExecucao = payload.data_execucao || oldOrdem?.data_execucao;
+
     if (payload.horario_inicio) {
-      payload.horario_inicio = combineDateTime(payload.data_execucao, payload.horario_inicio);
+      payload.horario_inicio = combineDateTime(currentDataExecucao, payload.horario_inicio);
     }
 
     if (payload.horario_fim) {
-      payload.horario_fim = combineDateTime(payload.data_execucao, payload.horario_fim);
+      payload.horario_fim = combineDateTime(currentDataExecucao, payload.horario_fim);
     }
 
     const { error } = await supabase

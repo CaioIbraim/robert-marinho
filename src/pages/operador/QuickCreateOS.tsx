@@ -29,9 +29,11 @@ export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess, initi
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const buildDateTime = (date: string, time?: string) => {
+  const buildDateTime = (date: string, time?: string, defaultTime?: string) => {
     if (!date) return null;
-    if (!time) return `${date}T00:00:00`;
+    if (!time) {
+      return defaultTime ? `${date}T${defaultTime}` : null;
+    }
     return `${date}T${time}:00`;
   };
 
@@ -53,7 +55,7 @@ export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess, initi
         origem: form.origem,
         destino: form.destino,
         passageiro: form.passageiro,
-        data_execucao: buildDateTime(form.data_execucao, form.hora_execucao) as string,
+        data_execucao: buildDateTime(form.data_execucao, form.hora_execucao, "00:00:00") as string,
         horario_inicio: buildDateTime(form.data_execucao, form.horario_inicio),
         horario_fim: buildDateTime(form.data_execucao, form.horario_fim),
         valor_faturamento: Number(form.valor_faturamento || 0),

@@ -725,6 +725,7 @@ export const OperadorOrdens = () => {
             onClose={() => setIsQuickManagerOpen(false)}
             onOpenQuickOS={(data) => {
               setQuickOSInitialData(data);
+              setIsQuickManagerOpen(false);
               setIsQuickCreateOpen(true);
             }}
           />

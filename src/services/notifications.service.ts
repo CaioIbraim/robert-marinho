@@ -29,6 +29,11 @@ export const notificationService = {
         .single();
 
       if (error) {
+        // Se for erro de RLS (42501), apenas avisamos mas não travamos o fluxo principal
+        if (error.code === '42501') {
+          console.warn('RLS Policy prevent notification insert for this user.');
+          return { data: null };
+        }
         console.error('Error creating notification:', error);
         return { error };
       }
