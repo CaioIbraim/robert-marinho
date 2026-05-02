@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { 
   Bell,
-  Loader2
+  Loader2,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { usePortalData } from "../../hooks/usePortalData";
 import { useAuthStore } from "../../stores/authStore";
@@ -17,7 +19,7 @@ import { ConfigProfile } from "../config/ConfigProfile";
 import { CorridasAndamento } from "./components/CorridasAndamento";
 import { FavoritosCliente } from "./components/FavoritosCliente";
 import { SidebarCliente } from "./components/SidebarCliente";
-import { useRealtimeNotifications } from "../../hooks/useRealtimeNotifications";
+import { useOrdemServicoRealtime } from "../../hooks/useOrdemServicoRealtime";
 
 type Tab = "nova" | "andamento" | "historico" | "faturas" | "equipe" | "perfil" | "favoritos";
 
@@ -27,7 +29,39 @@ export default function PortalCliente() {
   const { orders, financeiro, isLoading, perfil, refetch, empresaId } = usePortalData();
   const signOut = useAuthStore(state => state.signOut);
 
-  useRealtimeNotifications(refetch);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    return localStorage.getItem('rm_client_sound') !== 'false';
+  });
+
+  const handleSoundToggle = () => {
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    localStorage.setItem('rm_client_sound', String(newState));
+  };
+
+  useOrdemServicoRealtime({
+    channelId: 'cliente-portal',
+    onUpdate: refetch,
+    onDriverAction: ({ type, ordem }) => {
+      let msg = '';
+      if (type === 'assigned') {
+        msg = `Um motorista (${ordem.motorista?.nome || 'Designado'}) foi alocado para a sua OS #${ordem.numero_os || ordem.id.slice(0, 8)}.`;
+      } else if (type === 'checkin') {
+        msg = `O motorista da OS #${ordem.numero_os || ordem.id.slice(0, 8)} iniciou a viagem (Check-in).`;
+      }
+      
+      if (msg) {
+        if (soundEnabled) {
+          try {
+            const audio = new Audio('/songs/1.mp3');
+            audio.volume = 0.85;
+            audio.play().catch(() => {});
+          } catch {}
+        }
+        showToast(msg, 'info');
+      }
+    }
+  });
 
   const [favorites, setFavorites] = useState<any[]>(() => {
     const saved = localStorage.getItem('rm_favorites');
@@ -137,6 +171,16 @@ export default function PortalCliente() {
                     <p className="text-xs font-bold text-green-500 uppercase flex items-center gap-2 italic">
                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Ativo
                     </p>
+                 </div>
+                 <div className="px-4 border-r border-white/5 flex flex-col items-center">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">Som Alerta</p>
+                    <button 
+                       onClick={handleSoundToggle}
+                       className={`flex items-center gap-1 ${soundEnabled ? 'text-green-500' : 'text-zinc-500'}`}
+                       title={soundEnabled ? "Desativar alertas sonoros" : "Ativar alertas sonoros"}
+                    >
+                       {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                    </button>
                  </div>
                  <div className="pl-4">
                     <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">Data atual</p>

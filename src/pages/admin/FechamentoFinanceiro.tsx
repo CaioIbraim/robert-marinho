@@ -3,8 +3,9 @@ import { supabase } from '../../lib/supabaseClient';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, Save, Lock, CheckCircle, Calculator, Loader2, ChevronDown } from 'lucide-react';
+import { DollarSign, Save, Lock, CheckCircle, Calculator, Loader2, ChevronDown, FileSpreadsheet, History } from 'lucide-react';
 import type { OrdemServico } from '../../types';
+import { ExportColumnsModal } from './ExportColumnsModal';
 
 type Recebimento = {
   id: string;
@@ -22,6 +23,7 @@ export function FechamentoFinanceiro() {
   const [selectedOrdem, setSelectedOrdem] = useState<OrdemComFinanceiro | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Dados editáveis
   const [form, setForm] = useState({
@@ -52,6 +54,20 @@ export function FechamentoFinanceiro() {
         .eq('status', 'concluido')
         .order('data_execucao', { ascending: false });
       return (data as OrdemComFinanceiro[]) || [];
+    }
+  });
+
+  const { data: logs } = useQuery({
+    queryKey: ['fechamento-logs', selectedOrdem?.id],
+    enabled: !!selectedOrdem,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('logs_auditoria')
+        .select('*')
+        .eq('tabela_afetada', 'ordens_servico')
+        .eq('object_id', selectedOrdem!.id)
+        .order('created_at', { ascending: false });
+      return data || [];
     }
   });
 
@@ -123,9 +139,17 @@ export function FechamentoFinanceiro() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Fechamento Financeiro</h1>
-        <p className="text-text-muted text-sm">Auditoria e conciliação pós-viagem das Ordens de Serviço concluídas.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Fechamento Financeiro</h1>
+          <p className="text-text-muted text-sm">Auditoria e conciliação pós-viagem das Ordens de Serviço concluídas.</p>
+        </div>
+        <button 
+          onClick={() => setIsExportModalOpen(true)}
+          className="bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30 px-4 py-2 rounded-xl flex items-center gap-2 text-[11px] font-black uppercase tracking-widest transition"
+        >
+          <FileSpreadsheet className="w-4 h-4" /> Exportar Planilha
+        </button>
       </div>
 
       <div className="grid lg:grid-cols-5 gap-6 items-start">
@@ -321,6 +345,26 @@ export function FechamentoFinanceiro() {
                   </div>
                 </div>
 
+                {/* Logs de Auditoria */}
+                <div className="bg-background rounded-xl border border-border overflow-hidden">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted p-4 border-b border-border bg-surface/50 flex items-center gap-2">
+                    <History className="w-4 h-4 text-primary" /> Logs de Alteração (Auditoria)
+                  </h3>
+                  <div className="p-4 space-y-3 max-h-64 overflow-y-auto">
+                    {logs && logs.length > 0 ? logs.map(log => (
+                      <div key={log.id} className="text-sm border-b border-border/50 last:border-0 pb-3 last:pb-0">
+                        <div className="flex justify-between items-start mb-1 text-xs">
+                          <span className="font-bold text-zinc-300">{log.nome_usuario || 'Sistema'}</span>
+                          <span className="text-zinc-500">{format(parseISO(log.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
+                        </div>
+                        <p className="text-xs text-zinc-400 break-words line-clamp-2">Ação: {log.tipo_acao}</p>
+                      </div>
+                    )) : (
+                      <p className="text-xs text-zinc-500 italic text-center py-2">Nenhum log encontrado para esta OS.</p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Conferência */}
                 <label className={`flex items-center gap-3 cursor-pointer p-4 rounded-xl border transition-all ${
                   form.conferida_financeiro
@@ -352,6 +396,23 @@ export function FechamentoFinanceiro() {
           )}
         </div>
       </div>
+      
+      <ExportColumnsModal 
+        isOpen={isExportModalOpen} 
+        onClose={() => setIsExportModalOpen(false)} 
+        data={ordens || []} 
+        defaultColumns={[
+          { key: 'os', label: 'Nº OS', getValue: (o: any) => o.numero_os || o.id.slice(0, 8).toUpperCase() },
+          { key: 'data', label: 'Data', getValue: (o: any) => format(parseISO(o.data_execucao), 'dd/MM/yyyy') },
+          { key: 'empresa', label: 'Empresa', getValue: (o: any) => o.empresa?.razao_social || '' },
+          { key: 'origem', label: 'Origem', getValue: (o: any) => o.origem },
+          { key: 'destino', label: 'Destino', getValue: (o: any) => o.destino },
+          { key: 'faturamento', label: 'Faturamento Receita', getValue: (o: any) => o.valor_faturamento || 0 },
+          { key: 'custo_mot', label: 'Custo Motorista', getValue: (o: any) => o.valor_custo_motorista || 0 },
+          { key: 'custos_ops', label: 'Outros Custos', getValue: (o: any) => (o.valor_custo_pedagio || 0) + (o.valor_custo_estacionamento || 0) + (o.valor_custo_extra_terceiros || 0) + (o.valor_total_hora_parada || 0) },
+          { key: 'conferida', label: 'Conferida', getValue: (o: any) => o.conferida_financeiro ? 'SIM' : 'NÃO' }
+        ]} 
+      />
     </div>
   );
 }

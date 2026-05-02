@@ -15,20 +15,38 @@ import { OperacaoAtual } from './components/OperacaoAtual';
 import { HistoricoMotorista } from './components/HistoricoMotorista';
 import { FinanceiroMotorista } from './components/FinanceiroMotorista';
 import { PerfilMotorista } from './components/PerfilMotorista';
+import { VeiculoMotoristaModule } from './components/VeiculoMotoristaModule';
 import { ModalNotificacoes } from './components/ModalNotificacoes';
+import { useOrdemServicoRealtime } from '../../hooks/useOrdemServicoRealtime';
 import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
+import { Volume2, VolumeX } from 'lucide-react';
 
 export default function MotoristaDashboard() {
   const { signOut } = useAuthStore();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'viagens' | 'operacao' | 'historico' | 'ganhos' | 'perfil'>('viagens');
+  const [activeTab, setActiveTab] = useState<'viagens' | 'operacao' | 'historico' | 'ganhos' | 'perfil' | 'veiculo'>('viagens');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedOrdemId, setSelectedOrdemId] = useState<string | null>(null);
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const { motorista, orders, earnings, isLoading, perfil, refetch } = useDriverData();
 
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    return localStorage.getItem('rm_mute_notifications') !== 'true';
+  });
+
+  const toggleSound = () => {
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    localStorage.setItem('rm_mute_notifications', String(!newState));
+  };
+
   useRealtimeNotifications(refetch);
+
+  useOrdemServicoRealtime({
+    channelId: 'motorista-portal',
+    onUpdate: refetch,
+  });
 
   const handleSignOut = async () => {
     await signOut();
@@ -127,6 +145,13 @@ export default function MotoristaDashboard() {
                  <Bell className="w-5 h-5" />
                  <span className="absolute top-3 right-3 w-2 h-2 bg-primary rounded-full group-hover:scale-125 transition-transform border-2 border-zinc-950"></span>
               </button>
+              <button 
+                  onClick={toggleSound}
+                  className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-zinc-500 border border-white/5 hover:text-primary transition-all relative group"
+                  title={soundEnabled ? "Som Ativado" : "Som Mutado"}
+               >
+                  {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+               </button>
               <div className="hidden md:flex items-center gap-4 pl-4 border-l border-white/10">
                  <div className="text-right">
                     <p className="text-[10px] font-black text-white uppercase tracking-widest">{perfil?.full_name}</p>
@@ -155,6 +180,9 @@ export default function MotoristaDashboard() {
           )}
           {activeTab === 'perfil' && (
             <PerfilMotorista motorista={motorista} perfil={perfil} onUpdate={refetch} />
+          )}
+          {activeTab === 'veiculo' && (
+            <VeiculoMotoristaModule motorista={motorista} refetchMotorista={refetch} />
           )}
         </div>
 

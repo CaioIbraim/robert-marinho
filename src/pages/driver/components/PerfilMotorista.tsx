@@ -1,10 +1,11 @@
 import { useState, useCallback } from "react";
-import { User, Mail, Shield, Settings, Camera, Save, X, CreditCard, Calendar, Truck } from "lucide-react";
+import { User, Mail, Shield, Settings, Camera, Save, X, CreditCard, Calendar, Truck, Key } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { supabase } from "../../../lib/supabaseClient";
 import { showToast } from "../../../utils/swal";
 import Cropper from 'react-easy-crop';
 import imageCompression from 'browser-image-compression';
+import { RedefinirSenhaModal } from './RedefinirSenhaModal';
 
 interface PerfilMotoristaProps {
   motorista: any;
@@ -19,6 +20,7 @@ export const PerfilMotorista = ({ motorista, perfil, onUpdate }: PerfilMotorista
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: motorista?.nome || perfil?.full_name || '',
@@ -352,12 +354,20 @@ export const PerfilMotorista = ({ motorista, perfil, onUpdate }: PerfilMotorista
               </div>
               <h4 className="text-lg font-black text-white italic uppercase tracking-tighter mb-2">Central de Ajuda</h4>
               <p className="text-zinc-600 text-xs font-medium leading-relaxed mb-8">Precisa de ajuda com sua documentação ou transferências?</p>
-              <button className="w-full py-4 bg-zinc-950/50 text-[10px] font-black uppercase tracking-widest text-primary border border-primary/20 rounded-2xl hover:bg-primary hover:text-white transition-all">
-                 Falar com Suporte
+              <button 
+                 onClick={() => setIsPasswordModalOpen(true)}
+                 className="w-full py-4 mt-2 bg-zinc-950/50 text-[10px] font-black uppercase tracking-widest text-primary border border-primary/20 rounded-2xl hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-2"
+              >
+                 <Key className="w-3.5 h-3.5" /> Redefinir Minha Senha
               </button>
            </div>
         </div>
       </div>
+      
+      <RedefinirSenhaModal 
+        isOpen={isPasswordModalOpen} 
+        onClose={() => setIsPasswordModalOpen(false)} 
+      />
     </div>
   );
 };

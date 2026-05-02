@@ -8,7 +8,8 @@ import {
   Clock,
   Loader2
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isToday } from "date-fns";
+
 import { supabase } from "../../../lib/supabaseClient";
 import { showToast } from "../../../utils/swal";
 import { getLocalISOString } from "../../../utils/date";
@@ -37,8 +38,16 @@ export const OperacaoAtual = ({ ordem, onUpdate }: OperacaoAtualProps) => {
     try {
       const agora = getLocalISOString();
       const updates: any = { [campo]: agora };
+      const isValidDate = ordem.data_execucao ? isToday(parseISO(ordem.data_execucao)) : true;
       
-      if (campo === 'horario_inicio') updates.status = 'em_andamento';
+      if (campo === 'horario_inicio') {
+        if (!isValidDate) {
+          showToast('Você só pode iniciar viagens marcadas para o dia de hoje.', 'warning');
+          setLoading(null);
+          return;
+        }
+        updates.status = 'em_andamento';
+      }
       if (campo === 'horario_fim') {
         const paradasPendentes = ordem.paradas?.filter((p: any) => !p.realizada) || [];
         if (paradasPendentes.length > 0) {
@@ -144,12 +153,29 @@ export const OperacaoAtual = ({ ordem, onUpdate }: OperacaoAtualProps) => {
 
              <div className="grid grid-cols-2 gap-4">
                 <button 
-                  onClick={() => !ordem.horario_inicio && handleStatusChange('horario_inicio')}
-                  disabled={!!ordem.horario_inicio || loading === 'horario_inicio'}
-                  className={`py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 transition-all ${ordem.horario_inicio ? 'bg-zinc-800 text-zinc-500 border border-white/5 opacity-60' : 'bg-primary text-white shadow-xl shadow-primary/20 active:scale-95'}`}
+                  onClick={() => {
+                    if (ordem.data_execucao && !isToday(parseISO(ordem.data_execucao))) {
+                      showToast('Você só pode iniciar viagens marcadas para o dia de hoje.', 'warning');
+                      return;
+                    }
+                    !ordem.horario_inicio && handleStatusChange('horario_inicio');
+                  }}
+                  disabled={!!ordem.horario_inicio || loading === 'horario_inicio' || (ordem.data_execucao && !isToday(parseISO(ordem.data_execucao)))}
+                  className={`py-5 flex flex-col rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] items-center justify-center gap-1 transition-all ${
+                    ordem.horario_inicio 
+                      ? 'bg-zinc-800 text-zinc-500 border border-white/5 opacity-60' 
+                      : (ordem.data_execucao && !isToday(parseISO(ordem.data_execucao)))
+                        ? 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
+                        : 'bg-primary text-white shadow-xl shadow-primary/20 active:scale-95'
+                  }`}
                 >
-                   {loading === 'horario_inicio' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                   {ordem.horario_inicio ? `Iniciado às ${format(parseISO(ordem.horario_inicio), 'HH:mm')}` : 'Check-in Partida'}
+                   <div className="flex items-center gap-3">
+                     {loading === 'horario_inicio' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                     {ordem.horario_inicio ? `Iniciado às ${format(parseISO(ordem.horario_inicio), 'HH:mm')}` : 'Check-in Partida'}
+                   </div>
+                   {(ordem.data_execucao && !isToday(parseISO(ordem.data_execucao)) && !ordem.horario_inicio) && (
+                     <span className="text-[8px] font-bold text-red-500 mt-1 lowercase tracking-widest">Somente data agendada</span>
+                   )}
                 </button>
                 <button 
                   onClick={() => !ordem.horario_fim && handleStatusChange('horario_fim')}

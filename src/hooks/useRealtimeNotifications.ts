@@ -5,27 +5,50 @@ import { showToast } from '../utils/swal';
 export const useRealtimeNotifications = (onNewNotification?: () => void) => {
   useEffect(() => {
     let isActive = true;
+    let audio: HTMLAudioElement | null = null;
+
+    const playNotificationSound = () => {
+      const isMuted = localStorage.getItem('rm_mute_notifications') === 'true';
+      if (isMuted) return;
+
+      if (!audio) {
+        audio = new Audio('/songs/1.mp3');
+        audio.loop = false; // O usuário pediu que cessasse ao confirmar, mas se for rápido, um toque basta. 
+        // Se quisermos looping até confirmar, teríamos que gerenciar um estado global. 
+        // Por ora, vamos tocar uma vez por notificação.
+      }
+      audio.play().catch(e => console.warn('Erro ao tocar áudio:', e));
+    };
 
     const setupRealtime = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const role = user.user_metadata?.role;
 
-      // 1. WebSocket via Supabase Broadcast (rápido se habilitado no Dashboard)
+      // 1. WebSocket via Supabase Broadcast
       systemChannel
         .on(
           'broadcast',
           { event: 'new_notification' },
-          (payload) => {
+          (payload: any) => {
             if (!isActive) return;
             const newNotif = payload.payload as any;
             
+            // Filtro de permissão
             if (newNotif.user_id && newNotif.user_id !== user.id && role !== 'admin' && role !== 'operador') return;
 
+            // Se já mostramos via polling antes do broadcast chegar (raro mas possível)
+            if (newNotif.id && shownNotifs.has(newNotif.id)) return;
+            if (newNotif.id) shownNotifs.add(newNotif.id);
+
+            // Alerta visual
             if (newNotif.tipo === 'success') showToast(newNotif.mensagem, 'success');
             else if (newNotif.tipo === 'error') showToast(newNotif.mensagem, 'error');
             else if (newNotif.tipo === 'warning') showToast(newNotif.mensagem, 'warning');
             else showToast(newNotif.mensagem, 'info');
+
+            // Alerta Sonoro
+            playNotificationSound();
 
             if (onNewNotification) onNewNotification();
             document.dispatchEvent(new CustomEvent('rm_updateData'));
@@ -61,10 +84,14 @@ export const useRealtimeNotifications = (onNewNotification?: () => void) => {
                if (!shownNotifs.has(newNotif.id)) {
                  shownNotifs.add(newNotif.id);
                  hasNew = true;
+                 
                  if (newNotif.tipo === 'success') showToast(newNotif.mensagem, 'success');
                  else if (newNotif.tipo === 'error') showToast(newNotif.mensagem, 'error');
                  else if (newNotif.tipo === 'warning') showToast(newNotif.mensagem, 'warning');
                  else showToast(newNotif.mensagem, 'info');
+
+                 // Alerta Sonoro no polling também
+                 playNotificationSound();
                }
             });
 

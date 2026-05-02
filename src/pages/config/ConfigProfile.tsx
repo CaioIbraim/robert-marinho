@@ -6,8 +6,9 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../stores/authStore';
 import { usePerfil } from '../../hooks/usePerfil';
 import { Button } from '../../components/ui/Button';
-import { User, Mail, Camera, Save, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { User, Mail, Camera, Save, ArrowLeft, ShieldCheck, Key } from 'lucide-react';
 import { showToast } from '../../utils/swal';
+import { RedefinirSenhaModal } from '../driver/components/RedefinirSenhaModal';
 
 interface CroppedAreaPixels {
   width: number;
@@ -28,6 +29,7 @@ export const ConfigProfile = () => {
 
   const [avatarUrl, setAvatarUrl] = useState('');
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<CroppedAreaPixels | null>(null);
@@ -215,6 +217,13 @@ export const ConfigProfile = () => {
             >
               <Save className="w-5 h-5" /> Salvar Alterações
             </Button>
+
+            <button 
+               onClick={() => setIsPasswordModalOpen(true)}
+               className="w-full h-14 rounded-2xl bg-zinc-900 border border-border text-sm text-text-muted hover:text-white hover:border-primary/50 font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-colors"
+            >
+               <Key className="w-4 h-4" /> Redefinir Minha Senha
+            </button>
           </div>
         </div>
       </div>
@@ -250,6 +259,11 @@ export const ConfigProfile = () => {
           </div>
         </div>
       )}
+
+      <RedefinirSenhaModal 
+        isOpen={isPasswordModalOpen} 
+        onClose={() => setIsPasswordModalOpen(false)} 
+      />
     </div>
   );
 };

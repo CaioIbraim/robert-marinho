@@ -51,6 +51,7 @@ import { ConfigProfile } from './pages/config/ConfigProfile';
 // Novas Roles: Empresa & Motorista
 import { EmpresaDashboard } from "./pages/empresa/Dashboard";
 import MotoristaDashboard from "./pages/driver/MotoristaDashboard";
+import { MotoristaOrdemDetalhe } from './pages/driver/MotoristaOrdemDetalhe';
 
 function App() {
   return (
@@ -137,6 +138,7 @@ function App() {
           {/* ===================== */}
           <Route element={<RoleProtectedRoute allowedRoles={['motorista']} redirectPath="/motorista/login" />}>
             <Route path="/motorista/dashboard" element={<MotoristaDashboard />} />
+            <Route path="/motorista/ordem/:id" element={<MotoristaOrdemDetalhe />} />
           </Route>
 
           {/* Area: PORTAL CLIENTE */}

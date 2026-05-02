@@ -53,21 +53,22 @@ export const notificationService = {
         lida: false
       };
 
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from('notificacoes')
-        .insert([notifData]);
+        .insert([notifData])
+        .select()
+        .single();
 
       if (error) {
         console.error('NotificationService Insert Error:', error);
         return null;
       }
 
-      // Se não tiver joined ainda, tentamos emitir de qualquer jeito 
-      // ou apenas enviar (o client supabase fará queue/drop caso não aguarde o sub)
+      // Emite o broadcast com o dado real inserido (incluindo ID)
       systemChannel.send({
         type: 'broadcast',
         event: 'new_notification',
-        payload: notifData
+        payload: insertedData
       });
 
       return true;

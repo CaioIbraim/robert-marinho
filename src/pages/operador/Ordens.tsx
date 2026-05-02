@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, Eye, Clock, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, MapPin } from 'lucide-react';
-import { FaUsers, FaBuilding } from 'react-icons/fa';
+import { FaUsers, FaBuilding, FaWhatsapp } from 'react-icons/fa';
 import { supabase } from '../../lib/supabaseClient';
 import type { OrdemServicoFormData } from '../../schemas';
 import { ordemService } from '../../services/ordens.service';
@@ -24,6 +24,7 @@ import { exportToExcel, exportToPDF, generatePaymentReceipt } from '../../utils/
 import { ModalOS } from '../../components/ui/ModalOS';
 import { useNavigate } from 'react-router-dom';
 import { QuickCreateOS } from './QuickCreateOS';
+import { useOrdemServicoRealtime } from '../../hooks/useOrdemServicoRealtime';
 
 // 🔥 Tipos auxiliares
 type Parada = {
@@ -103,20 +104,6 @@ export const OperadorOrdens = () => {
 
   const { setGlobalLoading } = useLoadingStore();
 
-  // 🔴 Realtime: Sincronia global via WebSocket Broadcast / Polling
-  useEffect(() => {
-    const handleUpdate = () => {
-       const timeout = setTimeout(() => {
-          loadData();
-       }, 300);
-       return () => clearTimeout(timeout);
-    };
-    document.addEventListener('rm_updateData', handleUpdate);
-    return () => {
-      document.removeEventListener('rm_updateData', handleUpdate);
-    };
-  }, []);
-
   const loadData = async () => {
     try {
       const [ordensData, empresasData, motoristasData, veiculosData, tarifariosData] = await Promise.all([
@@ -137,6 +124,18 @@ export const OperadorOrdens = () => {
       setIsPageLoading(false);
     }
   };
+
+  // 🔴 Realtime: Sincronia global via WebSocket Broadcast / Polling Fallback
+  useOrdemServicoRealtime({
+    channelId: 'operador-ordens',
+    onUpdate: loadData,
+    onDriverAction: ({ type, ordem }) => {
+      // O hook já dispara o onUpdate (loadData), aqui podemos opcionalmente 
+      // reagir especificamente se quisermos toasters diferenciados, 
+      // mas o useRealtimeNotifications global já cuida dos toasts/sons.
+      console.log(`Driver action: ${type} on OS ${ordem.id}`);
+    }
+  });
 
   useEffect(() => {
     loadData();
@@ -162,6 +161,42 @@ export const OperadorOrdens = () => {
     const scheduledStart = parseISO(ordem.horario_inicio);
     return isBefore(scheduledStart, now) && !ordem.horario_fim;
   }, []);
+
+  const isAtraso24h = useCallback((ordem: OrdemServico) => {
+    if (ordem.status === 'concluido' || ordem.status === 'cancelado') return false;
+    if (!ordem.data_execucao) return false;
+    const d = ordem.data_execucao;
+    const execDate = d.length === 10 ? parseISO(d + 'T00:00:00') : parseISO(d);
+    return new Date().getTime() - execDate.getTime() > 24 * 60 * 60 * 1000;
+  }, []);
+
+  const getWhatsAppLink = (ato: 'motorista' | 'cliente', ordem: OrdemServico) => {
+    let phone = '';
+    let text = '';
+    const osId = ordem.numero_os || ordem.id.slice(0, 8);
+    const dataStr = ordem.data_execucao ? formatDateBR(ordem.data_execucao) : 'a confirmar';
+    // Se for data_execucao completa com T, pegamos o horário, senão usamos o agendado se existir
+    const scheduling = ordem.data_execucao && ordem.data_execucao.includes('T') 
+      ? formatDateTimeBR(ordem.data_execucao).split(' ')[1] 
+      : 'a confirmar';
+
+    if (ato === 'motorista') {
+      phone = ordem.motorista?.telefone || '';
+      const nome = ordem.motorista?.nome || 'Motorista';
+      
+      let statusAction = 'atribuída aguardando confirmação';
+      if (ordem.status === 'em_andamento') statusAction = 'em andamento';
+      else if (ordem.status === 'concluido') statusAction = 'concluída';
+
+      text = `Olá ${nome}! 👋\n\nVocê tem uma nova OS ${statusAction}:\n\n📌 OS #${osId}\n📍 ${ordem.origem} → ${ordem.destino}\n📅 Data: ${dataStr} às ${scheduling}\n👤 Passageiro: ${ordem.passageiro || 'Não informado'}\n\nAcesse seu painel para visualizar e realizar as ações:\n🔗 ${window.location.origin}/motorista/ordem/${ordem.id}\n\nEquipe Logística`;
+    } else {
+      phone = ordem.empresa?.telefone || '';
+      text = `Olá! 👋\n\nInformamos atualizações na sua Ordem de Serviço:\n\n📌 OS #${osId}\n📍 ${ordem.origem} → ${ordem.destino}\n📊 Status: ${STATUS_LABELS[ordem.status] || ordem.status}\n📅 Data: ${dataStr} às ${scheduling}\n\nAcompanhe em tempo real pelo seu painel:\n🔗 ${window.location.origin}/portal/login\n\nEquipe Logística`;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    return `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(text)}`;
+  };
 
   // 📊 Contagem de ordens por status
   const statusCounts = useMemo((): StatusCounts => {
@@ -208,7 +243,21 @@ export const OperadorOrdens = () => {
       let ordemId = editingId;
 
       if (editingId) {
+        // Busca a ordem atual para ver se o motorista mudou
+        const { data: currentOrdem } = await supabase.from('ordens_servico').select('motorista_id').eq('id', editingId).maybeSingle();
+        
         await ordemService.update(editingId, payload);
+        
+        if (payload.motorista_id && payload.motorista_id !== currentOrdem?.motorista_id) {
+          await notificationService.create({
+            titulo: 'Nova OS Atribuída',
+            mensagem: `Você recebeu uma Ordem de Serviço para ${data.destino}.`,
+            tipo: 'info',
+            user_id: payload.motorista_id,
+            link: `/motorista/ordem/${editingId}`
+          });
+        }
+
         if (data.status === 'concluido') {
           const { data: fin } = await supabase.from('recebimentos').select('status').eq('ordem_id', editingId).maybeSingle();
           if (fin?.status !== 'pago') setOrdemToConfirm(editingId);
@@ -217,6 +266,17 @@ export const OperadorOrdens = () => {
       } else {
         const novaOrdem = await ordemService.create(payload);
         ordemId = novaOrdem?.id || null;
+        
+        if (payload.motorista_id && ordemId) {
+           await notificationService.create({
+             titulo: 'Nova OS Atribuída',
+             mensagem: `Você recebeu uma Ordem de Serviço para ${data.destino}.`,
+             tipo: 'info',
+             user_id: payload.motorista_id,
+             link: `/motorista/ordem/${ordemId}`
+           });
+        }
+
         await notificationService.create({ titulo: 'Nova Ordem Criada', mensagem: `Nova OS para ${data.destino} criada.`, tipo: 'success', link: '/ordens' });
         showToast('Nova ordem criada!');
       }
@@ -754,9 +814,9 @@ export const OperadorOrdens = () => {
               ) : paginatedOrdens.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center">Nenhuma ordem encontrada.</td></tr>
               ) : paginatedOrdens.map((ordem) => (
-                <tr 
+                  <tr 
                   key={ordem.id} 
-                  className={`hover:bg-border/30 transition-colors group ${getStatusRowClass(ordem.status)}`}
+                  className={`hover:bg-border/30 transition-all group ${getStatusRowClass(ordem.status)} ${isAtraso24h(ordem) ? 'border shadow-[0_0_15px_rgba(239,68,68,0.2)] border-red-500/50 animate-[pulse_3s_ease-in-out_infinite]' : ''}`}
                 >
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-2">
@@ -784,7 +844,14 @@ export const OperadorOrdens = () => {
                           })()}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-white text-sm line-clamp-1">{ordem.empresa?.razao_social}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm line-clamp-1">{ordem.empresa?.razao_social}</span>
+                            {ordem.empresa?.telefone && (
+                              <a href={getWhatsAppLink('cliente', ordem)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 transition-colors tooltip-trigger" title="WhatsApp Cliente">
+                                <FaWhatsapp size={14} />
+                              </a>
+                            )}
+                          </div>
                           <span className="text-[10px] text-primary font-black tracking-widest uppercase">OS #{ordem.numero_os || ordem.id.slice(0, 8) || '---'}</span>
                         </div>
                       </div>
@@ -851,15 +918,37 @@ export const OperadorOrdens = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-white">{ordem.motorista?.nome}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white">{ordem.motorista?.nome}</span>
+                        {ordem.motorista?.telefone && (
+                           <a href={getWhatsAppLink('motorista', ordem)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 transition-colors tooltip-trigger" title="WhatsApp Motorista">
+                             <FaWhatsapp size={14} />
+                           </a>
+                        )}
+                      </div>
                       <span className="text-xs text-text-muted font-bold uppercase">{ordem.veiculo?.placa} - {ordem.veiculo?.modelo}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 font-bold text-white text-right">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(ordem.valor_faturamento)}
+                    <div className="flex flex-col items-end">
+                      <span>
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(ordem.valor_faturamento)}
+                      </span>
+                      {Number(ordem.valor_custo_motorista) > 0 && (
+                        <div className="text-[9px] text-primary mt-1 flex flex-col items-end bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                          <span className="uppercase tracking-widest opacity-80 leading-none">Repasse</span>
+                          <span className="font-black leading-none mt-0.5">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(Number(ordem.valor_custo_motorista))}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <StatusBadge status={ordem.status} />

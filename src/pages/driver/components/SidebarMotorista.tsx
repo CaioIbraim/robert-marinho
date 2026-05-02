@@ -4,7 +4,8 @@ import {
   History, 
   DollarSign, 
   Settings, 
-  LogOut 
+  LogOut,
+  Truck
 } from "lucide-react";
 
 interface SidebarMotoristaProps {
@@ -31,6 +32,7 @@ export const SidebarMotorista = ({
     { id: "operacao", label: "Em Operação", icon: MapPin },
     { id: "historico", label: "Histórico", icon: History },
     { id: "ganhos", label: "Ganhos", icon: DollarSign },
+    { id: "veiculo", label: "Meu Veículo", icon: Truck },
   ];
 
   return (

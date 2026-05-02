@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Pencil, Trash2, Download, FileText, ChevronLeft, ChevronRight, Filter, Eye, Clock, RefreshCw, AlertTriangle, MapPin } from 'lucide-react';
-import { FaUsers, FaBuilding } from 'react-icons/fa';
+import { FaUsers, FaBuilding, FaWhatsapp } from 'react-icons/fa';
 import { supabase } from '../../lib/supabaseClient';
 import type { OrdemServicoFormData } from '../../schemas';
 import { ordemService } from '../../services/ordens.service';
@@ -13,6 +13,7 @@ import { useLoadingStore } from '../../stores/useLoadingStore';
 import { showToast, showConfirm } from '../../utils/swal';
 import type { OrdemServico, Empresa, Motorista, Veiculo, Tarifario } from '../../types';
 import { format, parseISO, isValid, isBefore } from 'date-fns';
+import { useOrdemServicoRealtime } from '../../hooks/useOrdemServicoRealtime';
 import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
@@ -24,7 +25,19 @@ import { exportToExcel, exportToPDF, generatePaymentReceipt } from '../../utils/
 import { ModalOS } from '../../components/ui/ModalOS';
 import { useNavigate } from 'react-router-dom';
 
+const STATUS_COLORS: Record<string, string> = {
+  pendente: 'bg-amber-500/5',
+  em_andamento: 'bg-blue-500/5',
+  concluido: 'bg-emerald-500/5',
+  cancelado: 'bg-red-500/5',
+};
 
+const STATUS_LABELS: Record<string, string> = {
+  pendente: 'Pendente',
+  em_andamento: 'Em Andamento',
+  concluido: 'Concluída',
+  cancelado: 'Cancelada'
+};
 export const Ordens = () => {
   const navigate = useNavigate();
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
@@ -84,11 +97,13 @@ export const Ordens = () => {
     }
   };
 
+  useOrdemServicoRealtime({
+    channelId: 'admin-ordens',
+    onUpdate: loadData,
+  });
+
   useEffect(() => {
     loadData();
-    const handleUpdate = () => loadData();
-    document.addEventListener('rm_updateData', handleUpdate);
-    return () => document.removeEventListener('rm_updateData', handleUpdate);
   }, []);
 
   type Parada = {
@@ -143,7 +158,21 @@ export const Ordens = () => {
       let ordemId = editingId;
 
       if (editingId) {
+        // Busca a ordem atual para ver se o motorista mudou
+        const { data: currentOrdem } = await supabase.from('ordens_servico').select('motorista_id').eq('id', editingId).maybeSingle();
+
         await ordemService.update(editingId, payload);
+
+        if (payload.motorista_id && payload.motorista_id !== currentOrdem?.motorista_id) {
+          await notificationService.create({
+            titulo: 'Nova OS Atribuída',
+            mensagem: `Você recebeu uma Ordem de Serviço para ${data.destino}.`,
+            tipo: 'info',
+            user_id: payload.motorista_id,
+            link: `/motorista/ordem/${editingId}`
+          });
+        }
+
         if (data.status === 'concluido') {
           const { data: fin } = await supabase.from('recebimentos').select('status').eq('ordem_id', editingId).maybeSingle();
           if (fin?.status !== 'pago') setOrdemToConfirm(editingId);
@@ -152,6 +181,17 @@ export const Ordens = () => {
       } else {
         const novaOrdem = await ordemService.create(payload);
         ordemId = novaOrdem?.id || null;
+
+        if (payload.motorista_id && ordemId) {
+           await notificationService.create({
+             titulo: 'Nova OS Atribuída',
+             mensagem: `Você recebeu uma Ordem de Serviço para ${data.destino}.`,
+             tipo: 'info',
+             user_id: payload.motorista_id,
+             link: `/motorista/ordem/${ordemId}`
+           });
+        }
+
         await notificationService.create({ titulo: 'Nova Ordem Criada', mensagem: `Nova OS para ${data.destino} criada.`, tipo: 'success', link: '/ordens' });
         showToast('Nova ordem criada!');
       }
@@ -212,10 +252,6 @@ export const Ordens = () => {
   };
 
   const handleEdit = (ordem: OrdemServico) => {
-    if (ordem.status === 'concluido') {
-      showToast('Ordens concluídas não podem ser editadas.', 'warning');
-      return;
-    }
     setEditingId(ordem.id);
     const formData: OrdemServicoFormData = {
       empresa_id: ordem.empresa_id,
@@ -350,11 +386,52 @@ export const Ordens = () => {
     }
   };
 
-  const isOrdemAtrasada = (ordem: OrdemServico) => {
+  // 🎨 Função para obter classe de background por status
+  const getStatusRowClass = (status: string) => {
+    return STATUS_COLORS[status] || '';
+  };
+
+  // ⚠️ Função para detectar atraso operacional
+  const isOrdemAtrasada = useCallback((ordem: OrdemServico) => {
     if (!ordem.horario_inicio || ordem.status === 'concluido' || ordem.status === 'cancelado') return false;
     const now = new Date();
     const scheduledStart = parseISO(ordem.horario_inicio);
     return isBefore(scheduledStart, now) && !ordem.horario_fim;
+  }, []);
+
+  const isAtraso24h = useCallback((ordem: OrdemServico) => {
+    if (ordem.status === 'concluido' || ordem.status === 'cancelado') return false;
+    if (!ordem.data_execucao) return false;
+    const d = ordem.data_execucao;
+    const execDate = d.length === 10 ? parseISO(d + 'T00:00:00') : parseISO(d);
+    return new Date().getTime() - execDate.getTime() > 24 * 60 * 60 * 1000;
+  }, []);
+
+  const getWhatsAppLink = (ato: 'motorista' | 'cliente', ordem: OrdemServico) => {
+    let phone = '';
+    let text = '';
+    const osId = ordem.numero_os || ordem.id.slice(0, 8);
+    const dataStr = ordem.data_execucao ? formatDateBR(ordem.data_execucao) : 'a confirmar';
+    const scheduling = ordem.data_execucao && ordem.data_execucao.includes('T') 
+      ? formatDateTimeBR(ordem.data_execucao).split(' ')[1] 
+      : 'a confirmar';
+
+    if (ato === 'motorista') {
+      phone = ordem.motorista?.telefone || '';
+      const nome = ordem.motorista?.nome || 'Motorista';
+      
+      let statusAction = 'atribuída aguardando confirmação';
+      if (ordem.status === 'em_andamento') statusAction = 'em andamento';
+      else if (ordem.status === 'concluido') statusAction = 'concluída';
+
+      text = `Olá ${nome}! 👋\n\nVocê tem uma nova OS ${statusAction}:\n\n📌 OS #${osId}\n📍 ${ordem.origem} → ${ordem.destino}\n📅 Data: ${dataStr} às ${scheduling}\n👤 Passageiro: ${ordem.passageiro || 'Não informado'}\n\nAcesse seu painel para visualizar e realizar as ações:\n🔗 ${window.location.origin}/motorista/ordem/${ordem.id}\n\nEquipe Logística`;
+    } else {
+      phone = ordem.empresa?.telefone || '';
+      text = `Olá! 👋\n\nInformamos atualizações na sua Ordem de Serviço:\n\n📌 OS #${osId}\n📍 ${ordem.origem} → ${ordem.destino}\n📊 Status: ${STATUS_LABELS[ordem.status] || ordem.status}\n📅 Data: ${dataStr} às ${scheduling}\n\nAcompanhe em tempo real pelo seu painel:\n🔗 ${window.location.origin}/portal/login\n\nEquipe Logística`;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    return `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(text)}`;
   };
 
   const filteredOrdens = ordens.filter(o => {
@@ -557,7 +634,10 @@ export const Ordens = () => {
               ) : paginatedOrdens.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center">Nenhuma ordem encontrada.</td></tr>
               ) : paginatedOrdens.map((ordem) => (
-                <tr key={ordem.id} className="hover:bg-border/20 transition-colors group">
+                <tr 
+                  key={ordem.id} 
+                  className={`hover:bg-border/20 transition-all group ${getStatusRowClass(ordem.status)} ${isAtraso24h(ordem) ? 'border shadow-[0_0_15px_rgba(239,68,68,0.2)] border-red-500/50 animate-[pulse_3s_ease-in-out_infinite]' : ''}`}
+                >
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-3">
@@ -583,7 +663,14 @@ export const Ordens = () => {
                           })()}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-white text-sm line-clamp-1">{ordem.empresa?.razao_social}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm line-clamp-1">{ordem.empresa?.razao_social}</span>
+                            {ordem.empresa?.telefone && (
+                              <a href={getWhatsAppLink('cliente', ordem)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 transition-colors tooltip-trigger" title="WhatsApp Cliente">
+                                <FaWhatsapp size={14} />
+                              </a>
+                            )}
+                          </div>
                           <span className="text-[10px] text-primary font-black tracking-widest uppercase">OS #{ordem.numero_os || ordem.id.slice(0, 8) || '---'}</span>
                         </div>
                       </div>
@@ -650,15 +737,37 @@ export const Ordens = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-white">{ordem.motorista?.nome}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white">{ordem.motorista?.nome}</span>
+                        {ordem.motorista?.telefone && (
+                           <a href={getWhatsAppLink('motorista', ordem)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 transition-colors tooltip-trigger" title="WhatsApp Motorista">
+                             <FaWhatsapp size={14} />
+                           </a>
+                        )}
+                      </div>
                       <span className="text-xs text-text-muted font-bold uppercase">{ordem.veiculo?.placa} - {ordem.veiculo?.modelo}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 font-bold text-white text-right">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(ordem.valor_faturamento)}
+                    <div className="flex flex-col items-end">
+                      <span>
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(ordem.valor_faturamento)}
+                      </span>
+                      {Number(ordem.valor_custo_motorista) > 0 && (
+                        <div className="text-[9px] text-primary mt-1 flex flex-col items-end bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                          <span className="uppercase tracking-widest opacity-80 leading-none">Repasse</span>
+                          <span className="font-black leading-none mt-0.5">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(Number(ordem.valor_custo_motorista))}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <StatusBadge status={ordem.status} />
@@ -690,10 +799,9 @@ export const Ordens = () => {
                       </button>
                       
                       <button 
-                        disabled={ordem.status === 'concluido'}
-                        className={`p-1.5 text-text-muted hover:text-primary transition-colors bg-surface border border-border rounded-md ${ordem.status === 'concluido' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className="p-1.5 text-text-muted hover:text-primary transition-colors bg-surface border border-border rounded-md"
                         onClick={() => handleEdit(ordem)}
-                        title={ordem.status === 'concluido' ? "OS Concluída - Edição Bloqueada" : "Editar Ordem"}
+                        title="Editar Ordem (Nível Admin)"
                       >
                         <Pencil size={18} />
                       </button>
