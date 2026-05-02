@@ -25,11 +25,14 @@ export const motoristaService = {
   },
 
   async create(data: MotoristaFormData) {
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from('motoristas')
-      .insert([data]);
+      .insert([data])
+      .select()
+      .single();
     
     if (error) throw error;
+    return inserted as Motorista;
   },
 
   async update(id: string, data: Partial<MotoristaFormData>) {

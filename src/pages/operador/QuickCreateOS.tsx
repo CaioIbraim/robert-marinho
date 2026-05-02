@@ -3,14 +3,14 @@ import { Button } from '../../components/ui/Button';
 import { ordemService } from '../../services/ordens.service';
 import { showToast } from '../../utils/swal';
 
-export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess }: any) => {
+export const QuickCreateOS = ({ empresas, motoristas, veiculos, onSuccess, initialData }: any) => {
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    empresa_id: '',
-    motorista_id: '',
-    veiculo_id: '',
-    data_execucao: '',
+    empresa_id: initialData?.empresa_id || '',
+    motorista_id: initialData?.motorista_id || '',
+    veiculo_id: initialData?.veiculo_id || '',
+    data_execucao: initialData?.data_execucao || '',
     horario_inicio: '',
     origem: '',
     destino: '',

@@ -33,6 +33,7 @@ export type Motorista = {
   validade_cnh?: string;
   tipo_vinculo: 'fixo' | 'terceiro';
   pix_key?: string;
+  veiculo_id?: string | null;
   status: string;
   created_at: string;
   updated_at?: string;

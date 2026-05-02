@@ -19,6 +19,7 @@ export const motoristaSchema = z.object({
   validade_cnh: z.string().optional(),
   tipo_vinculo: z.enum(['fixo', 'terceiro']).default('fixo'),
   pix_key: z.string().optional(),
+  veiculo_id: z.string().uuid().nullable().optional(),
   status: z.string().optional(),
 });
 

@@ -25,6 +25,7 @@ import { ModalOS } from '../../components/ui/ModalOS';
 import { useNavigate } from 'react-router-dom';
 import { QuickCreateOS } from './QuickCreateOS';
 import { useOrdemServicoRealtime } from '../../hooks/useOrdemServicoRealtime';
+import { QuickManager } from './QuickManager';
 
 // 🔥 Tipos auxiliares
 type Parada = {
@@ -82,6 +83,10 @@ export const OperadorOrdens = () => {
   const [filterDataFim, setFilterDataFim] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // ⚡ Gestão Rápida
+  const [isQuickManagerOpen, setIsQuickManagerOpen] = useState(false);
+  const [quickOSInitialData, setQuickOSInitialData] = useState<any>(null);
 
   // 🔃 Estado para ordenação da tabela
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: 'asc' });
@@ -654,10 +659,20 @@ export const OperadorOrdens = () => {
         <div className="flex gap-2">
           <Button 
             variant="ghost"
-            onClick={() => setIsQuickCreateOpen(true)}
+            onClick={() => setIsQuickManagerOpen(true)}
             className="flex gap-2 border border-primary/20 text-primary hover:bg-primary/10"
           >
-            <Plus size={20} /> Cadastro Rápido
+            <Plus size={20} /> Gestão Rápida
+          </Button>
+          <Button 
+            variant="ghost"
+            onClick={() => {
+              setQuickOSInitialData(null);
+              setIsQuickCreateOpen(true);
+            }}
+            className="flex gap-2 border border-blue-500/20 text-blue-500 hover:bg-blue-500/10"
+          >
+            <Plus size={20} /> OS Rápida
           </Button>
           <Button onClick={() => {
             setEditingId(null);
@@ -672,7 +687,7 @@ export const OperadorOrdens = () => {
       {/* 📊 Chips de filtro por status */}
       <StatusFilterChips />
 
-      {/* Modal Cadastro Rápido */}
+      {/* Modal Cadastro Rápido OS */}
       {isQuickCreateOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -687,6 +702,7 @@ export const OperadorOrdens = () => {
                 empresas={empresas}
                 motoristas={motoristas}
                 veiculos={veiculos}
+                initialData={quickOSInitialData}
                 onSuccess={() => {
                   loadData();
                   setIsQuickCreateOpen(false);
@@ -694,6 +710,24 @@ export const OperadorOrdens = () => {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Sidebar de Gestão Rápida */}
+      {isQuickManagerOpen && (
+        <div className="fixed inset-0 z-[150] flex justify-end overflow-hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setIsQuickManagerOpen(false)}></div>
+          <QuickManager
+            motoristas={motoristas}
+            veiculos={veiculos}
+            tarifarios={tarifarios}
+            onRefresh={loadData}
+            onClose={() => setIsQuickManagerOpen(false)}
+            onOpenQuickOS={(data) => {
+              setQuickOSInitialData(data);
+              setIsQuickCreateOpen(true);
+            }}
+          />
         </div>
       )}
 
